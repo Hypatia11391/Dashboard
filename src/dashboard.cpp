@@ -6,6 +6,8 @@
 
 #include <GLFW/glfw3.h>
 
+#include <frc/geometry/Pose2d.h>
+#include <networktables/DoubleArrayTopic.h>
 #include <networktables/DoubleTopic.h>
 #include <networktables/NetworkTable.h>
 #include <networktables/NetworkTableInstance.h>
@@ -17,6 +19,7 @@
 #include "src/constants.hpp"
 #include "src/dashboard.hpp"
 #include "src/primitives.hpp"
+#include "units/angle.h"
 
 Dashboard::Dashboard()
 {
@@ -31,13 +34,13 @@ void Dashboard::run()
 
 void Dashboard::init()
 {
-    inst       = nt::NetworkTableInstance::GetDefault();
-    table      = inst.GetTable("datatable");
-    xSub       = table->GetDoubleTopic("x").Subscribe(0.0);
-    ySub       = table->GetDoubleTopic("y").Subscribe(0.0);
-    dxSub      = table->GetDoubleTopic("dx").Subscribe(0.0);
-    dySub      = table->GetDoubleTopic("dy").Subscribe(0.0);
-    headingSub = table->GetDoubleTopic("heading").Subscribe(0.0);
+    inst  = nt::NetworkTableInstance::GetDefault();
+    table = inst.GetTable("datatable");
+
+    fieldTable       = table->GetSubTable("field");
+    robotPoseSub     = fieldTable->GetDoubleArrayTopic("robot").Subscribe({});
+    robotVelocitySub = fieldTable->GetDoubleArrayTopic("velocity").Subscribe({});
+    trajPoseSub      = fieldTable->GetDoubleArrayTopic("trajectory").Subscribe({});
 
     intakeLiftPosSub       = table->GetDoubleTopic("intake-lift-pos").Subscribe(0.0);
     intakeLiftTargetPosSub = table->GetDoubleTopic("intake-lift-target-pos").Subscribe(0.0);
@@ -97,12 +100,50 @@ void Dashboard::mainLoop()
     {
         glfwPollEvents();
 
-        float x       = xSub.Get();
-        float y       = ySub.Get();
-        float dx      = dxSub.Get();
-        float dy      = dySub.Get();
-        float heading = headingSub.Get();
-        float v       = vSub.Get();
+        float v = vSub.Get();
+
+        auto poseData = robotPoseSub.Get();
+        frc::Pose2d pose;
+
+        if (poseData.size() >= 3)
+        {
+            pose = {units::meter_t(poseData[0]),
+                    units::meter_t(poseData[1]),
+                    {units::degree_t(poseData[2])}};
+        }
+        else
+        {
+            pose = {};
+        }
+
+        auto velocityData = robotVelocitySub.Get();
+        frc::Pose2d velocity;
+
+        if (velocityData.size() >= 3)
+        {
+            velocity = {units::meter_t(velocityData[0]),
+                        units::meter_t(velocityData[1]),
+                        {units::degree_t(velocityData[2])}};
+        }
+        else
+        {
+            velocity = {};
+        }
+
+        auto trajData = trajPoseSub.Get();
+        std::vector<frc::Pose2d> trajPoints;
+
+        if (!trajData.empty() && trajData.size() % 3 == 0)
+        {
+            trajPoints.resize(trajData.size() / 3);
+
+            for (int i = 0; i * 3 < trajData.size(); i++)
+            {
+                trajPoints[i] = {units::meter_t(trajData[i * 3]),
+                                 units::meter_t(trajData[i * 3 + 1]),
+                                 {units::degree_t(trajData[i * 3 + 2])}};
+            }
+        }
 
         float intakeLiftPos       = intakeLiftPosSub.Get();
         float intakeLiftTargetPos = intakeLiftTargetPosSub.Get();
@@ -127,17 +168,18 @@ void Dashboard::mainLoop()
 
         ImGui::Begin("Telemetry Data");
 
-        ImGui::Text("X Position:        %.3f", x);
-        ImGui::Text("Y Position:        %.3f", y);
+        ImGui::Text("X Position:    %.3f", (float) pose.X());
+        ImGui::Text("Y Position:    %.3f", (float) pose.X());
 
         ImGui::Separator();
 
-        ImGui::Text("DX Value:          %.3f", dx);
-        ImGui::Text("DY Value:          %.3f", dy);
+        ImGui::Text("DX Value:      %.3f", (float) velocity.X());
+        ImGui::Text("DY Value:      %.3f", (float) velocity.Y());
+        ImGui::Text("Omega Value:   %.3f", (float) velocity.Rotation().Radians());
 
         ImGui::Separator();
 
-        ImGui::Text("Heading Value:     %.3f", heading);
+        ImGui::Text("Heading Value: %.3f", (float) pose.Rotation().Degrees());
 
         ImDrawList* drawList = ImGui::GetWindowDrawList();
 
@@ -157,16 +199,39 @@ void Dashboard::mainLoop()
         //                          topLeft.y + consts::fieldH * consts::fieldScaleFactor + consts::robotH * consts::fieldScaleFactor / 2},
         //                         IM_COL32(25, 40, 60, 255));
 
+        // drawRotatedRect(drawList,
+        //                 {topLeft.x + x * consts::fieldScaleFactor,
+        //                  topLeft.y + consts::fieldH * consts::fieldScaleFactor - y * consts::fieldScaleFactor + consts::robotH * consts::fieldScaleFactor / 2},
+        //                 {consts::robotH * consts::fieldScaleFactor, consts::robotW * consts::fieldScaleFactor},
+        //                 heading,
+        //                 IM_COL32(100, 125, 200, 255));
+
         drawRotatedRect(drawList,
-                        {topLeft.x + x * consts::fieldScaleFactor,
-                         topLeft.y + consts::fieldH * consts::fieldScaleFactor - y * consts::fieldScaleFactor + consts::robotH * consts::fieldScaleFactor / 2},
+                        {topLeft.x + (float) pose.X() * consts::fieldScaleFactor,
+                         topLeft.y + consts::fieldH * consts::fieldScaleFactor - (float) pose.Y() * consts::fieldScaleFactor + consts::robotH * consts::fieldScaleFactor / 2},
                         {consts::robotH * consts::fieldScaleFactor, consts::robotW * consts::fieldScaleFactor},
-                        heading,
+                        (float) pose.Rotation().Degrees(),
                         IM_COL32(100, 125, 200, 255));
+
+        std::vector<ImVec2> trajPointsToDraw;
+        trajPointsToDraw.resize(trajPoints.size());
+
+        for (int i = 0; i < trajPoints.size(); i++)
+        {
+            trajPointsToDraw[i] = {topLeft.x + (float) trajPoints[i].X() * consts::fieldScaleFactor,
+                                   topLeft.y + consts::fieldH * consts::fieldScaleFactor - (float) trajPoints[i].Y() * consts::fieldScaleFactor};
+        }
+
+        drawList->AddPolyline(
+            trajPointsToDraw.data(),
+            trajPointsToDraw.size(),
+            IM_COL32(0, 0, 255, 255),
+            ImDrawFlags_None,
+            2.0f);
 
         ImGui::Separator();
 
-        drawCompass(drawList, "Heading:", heading * consts::PI / 180, 200);
+        drawCompass(drawList, "Heading:", (float) pose.Rotation().Degrees() * consts::PI / 180, 200);
 
         ImGui::End();
 

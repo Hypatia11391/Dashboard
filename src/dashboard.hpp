@@ -1,5 +1,6 @@
 #include <GLFW/glfw3.h>
 
+#include <networktables/DoubleArrayTopic.h>
 #include <networktables/DoubleTopic.h>
 #include <networktables/NetworkTable.h>
 #include <networktables/NetworkTableInstance.h>
@@ -28,11 +29,10 @@ class Dashboard
         nt::NetworkTableInstance inst;
         std::shared_ptr<nt::NetworkTable> table;
 
-        nt::DoubleSubscriber xSub;
-        nt::DoubleSubscriber ySub;
-        nt::DoubleSubscriber dxSub;
-        nt::DoubleSubscriber dySub;
-        nt::DoubleSubscriber headingSub;
+        std::shared_ptr<nt::NetworkTable> fieldTable;
+        nt::DoubleArraySubscriber robotPoseSub;
+        nt::DoubleArraySubscriber trajPoseSub;
+        nt::DoubleArraySubscriber robotVelocitySub;
 
         nt::DoubleSubscriber intakeLiftPosSub;
         nt::DoubleSubscriber intakeLiftTargetPosSub;
