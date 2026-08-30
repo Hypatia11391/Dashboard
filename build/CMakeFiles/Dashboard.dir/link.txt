@@ -1,0 +1,1 @@
+/usr/bin/c++ -Wl,--dependency-file=CMakeFiles/Dashboard.dir/link.d CMakeFiles/Dashboard.dir/main.cpp.o -o Dashboard   -L/home/benny/wpilib/2026/extracted/linux/x86-64/shared  -Wl,-rpath,/home/benny/wpilib/2026/extracted/linux/x86-64/shared -lwpilibc -lntcore -lcameraserver -lcscore -lwpiHal -lwpimath -lwpinet -lwpiutil

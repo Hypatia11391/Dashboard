@@ -1,0 +1,7 @@
+{
+	"InstallScripts" : 
+	[
+		"/home/benny/code/FRC/Dashboard/build/cmake_install.cmake"
+	],
+	"Parallel" : false
+}
