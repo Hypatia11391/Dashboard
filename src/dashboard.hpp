@@ -25,6 +25,8 @@ class Dashboard
 
         GLuint fieldImg;
 
+        int current_item_idx = 0;
+
     private:
         nt::NetworkTableInstance inst;
         std::shared_ptr<nt::NetworkTable> table;
@@ -51,4 +53,9 @@ class Dashboard
 
         nt::StringArraySubscriber autoListSub;
         nt::StringPublisher autoPub;
+
+        nt::DoubleSubscriber frontLeftSub;
+        nt::DoubleSubscriber frontRightSub;
+        nt::DoubleSubscriber rearLeftSub;
+        nt::DoubleSubscriber rearRightSub;
 };

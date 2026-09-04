@@ -60,6 +60,11 @@ void Dashboard::init()
     autoPub     = table->GetStringTopic("selected-auto").Publish();
     autoListSub = table->GetStringArrayTopic("auto-list").Subscribe({});
 
+    frontLeftSub  = table->GetDoubleTopic("front-left").Subscribe(0);
+    frontRightSub = table->GetDoubleTopic("front-right").Subscribe(0);
+    rearLeftSub   = table->GetDoubleTopic("rear-left").Subscribe(0);
+    rearRightSub  = table->GetDoubleTopic("rear-right").Subscribe(0);
+
     inst.StartClient4("Dashboard Client");
     inst.SetServerTeam(11391);
     inst.StartDSClient();
@@ -169,7 +174,7 @@ void Dashboard::mainLoop()
         ImGui::Begin("Telemetry Data");
 
         ImGui::Text("X Position:    %.3f", (float) pose.X());
-        ImGui::Text("Y Position:    %.3f", (float) pose.X());
+        ImGui::Text("Y Position:    %.3f", (float) pose.Y());
 
         ImGui::Separator();
 
@@ -210,7 +215,7 @@ void Dashboard::mainLoop()
                         {topLeft.x + (float) pose.X() * consts::fieldScaleFactor,
                          topLeft.y + consts::fieldH * consts::fieldScaleFactor - (float) pose.Y() * consts::fieldScaleFactor + consts::robotH * consts::fieldScaleFactor / 2},
                         {consts::robotH * consts::fieldScaleFactor, consts::robotW * consts::fieldScaleFactor},
-                        (float) pose.Rotation().Degrees(),
+                        -(float) pose.Rotation().Degrees(),
                         IM_COL32(100, 125, 200, 255));
 
         std::vector<ImVec2> trajPointsToDraw;
@@ -231,14 +236,13 @@ void Dashboard::mainLoop()
 
         ImGui::Separator();
 
-        drawCompass(drawList, "Heading:", (float) pose.Rotation().Degrees() * consts::PI / 180, 200);
+        drawCompass(drawList, "Heading:", -(float) pose.Rotation().Degrees() * consts::PI / 180, 200);
 
         ImGui::End();
 
         ImGui::Begin("Autos");
 
         std::vector<std::string> items = autoListSub.Get();
-        static int current_item_idx    = 0;
 
         if (current_item_idx >= static_cast<int>(items.size()))
         {
@@ -270,7 +274,7 @@ void Dashboard::mainLoop()
                 if (is_selected)
                 {
                     ImGui::SetItemDefaultFocus();
-                    autoPub.Set(items[0]);
+                    autoPub.Set(items[n]);
                 }
             }
             ImGui::EndCombo();
@@ -334,6 +338,17 @@ void Dashboard::mainLoop()
         ImGui::Text("Shooter Right Target RPM: %.3f", shooterRightTargetRPM);
 
         ImGui::End();
+
+        std::cout
+            << frontLeftSub.Get()
+            << "\n"
+            << frontRightSub.Get()
+            << "\n"
+            << rearLeftSub.Get()
+            << "\n"
+            << rearRightSub.Get()
+            << "\n"
+            << std::endl;
 
         ImGui::Render();
         int display_w, display_h;
