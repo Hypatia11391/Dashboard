@@ -54,8 +54,7 @@ class Dashboard
         nt::StringArraySubscriber autoListSub;
         nt::StringPublisher autoPub;
 
-        nt::DoubleSubscriber frontLeftSub;
-        nt::DoubleSubscriber frontRightSub;
-        nt::DoubleSubscriber rearLeftSub;
-        nt::DoubleSubscriber rearRightSub;
+        nt::DoublePublisher kpPub;
+        nt::DoublePublisher kiPub;
+        nt::DoublePublisher kdPub;
 };

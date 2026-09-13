@@ -60,10 +60,9 @@ void Dashboard::init()
     autoPub     = table->GetStringTopic("selected-auto").Publish();
     autoListSub = table->GetStringArrayTopic("auto-list").Subscribe({});
 
-    frontLeftSub  = table->GetDoubleTopic("front-left").Subscribe(0);
-    frontRightSub = table->GetDoubleTopic("front-right").Subscribe(0);
-    rearLeftSub   = table->GetDoubleTopic("rear-left").Subscribe(0);
-    rearRightSub  = table->GetDoubleTopic("rear-right").Subscribe(0);
+    kpPub = table->GetDoubleTopic("pid-kp").Publish();
+    kiPub = table->GetDoubleTopic("pid-ki").Publish();
+    kdPub = table->GetDoubleTopic("pid-kd").Publish();
 
     inst.StartClient4("Dashboard Client");
     inst.SetServerTeam(11391);
@@ -101,6 +100,8 @@ void Dashboard::init()
 
 void Dashboard::mainLoop()
 {
+    double kp = 0, ki = 0, kd = 0;
+
     while (!glfwWindowShouldClose(window))
     {
         glfwPollEvents();
@@ -163,6 +164,10 @@ void Dashboard::mainLoop()
         float shooterRightRPM       = shooterRightRPMSub.Get();
         float shooterRightTargetRPM = shooterRightTargetRPMSub.Get();
 
+        kpPub.Set(kp);
+        kiPub.Set(ki);
+        kdPub.Set(kd);
+
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
@@ -198,18 +203,6 @@ void Dashboard::mainLoop()
                             topLeft.y + consts::fieldH * consts::fieldScaleFactor + consts::robotH * consts::fieldScaleFactor / 2},
                            {(float) 90 / 3508, (float) 90 / 1814},
                            {1 - (float) 90 / 3508, 1 - (float) 90 / 1814});
-
-        // drawList->AddRectFilled({topLeft.x, topLeft.y + consts::robotH * consts::fieldScaleFactor / 2},
-        //                         {topLeft.x + consts::fieldW * consts::fieldScaleFactor,
-        //                          topLeft.y + consts::fieldH * consts::fieldScaleFactor + consts::robotH * consts::fieldScaleFactor / 2},
-        //                         IM_COL32(25, 40, 60, 255));
-
-        // drawRotatedRect(drawList,
-        //                 {topLeft.x + x * consts::fieldScaleFactor,
-        //                  topLeft.y + consts::fieldH * consts::fieldScaleFactor - y * consts::fieldScaleFactor + consts::robotH * consts::fieldScaleFactor / 2},
-        //                 {consts::robotH * consts::fieldScaleFactor, consts::robotW * consts::fieldScaleFactor},
-        //                 heading,
-        //                 IM_COL32(100, 125, 200, 255));
 
         drawRotatedRect(drawList,
                         {topLeft.x + (float) pose.X() * consts::fieldScaleFactor,
@@ -339,18 +332,16 @@ void Dashboard::mainLoop()
 
         ImGui::End();
 
-        std::cout
-            << frontLeftSub.Get()
-            << "\n"
-            << frontRightSub.Get()
-            << "\n"
-            << rearLeftSub.Get()
-            << "\n"
-            << rearRightSub.Get()
-            << "\n"
-            << std::endl;
+        ImGui::Begin("PID");
+
+        ImGui::InputDouble("KP", &kp, 0.001f, 1.0f, "%.4f");
+        ImGui::InputDouble("KI", &ki, 0.001f, 1.0f, "%.4f");
+        ImGui::InputDouble("KD", &kd, 0.001f, 1.0f, "%.4f");
+
+        ImGui::End();
 
         ImGui::Render();
+
         int display_w, display_h;
         glfwGetFramebufferSize(window, &display_w, &display_h);
         glViewport(0, 0, display_w, display_h);
