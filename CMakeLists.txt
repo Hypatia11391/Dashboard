@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(Dashboard LANGUAGES CXX)
+project(Dashboard LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -27,6 +27,7 @@ add_executable(Dashboard
     main.cpp 
     src/dashboard.cpp
     src/primitives.cpp
+    src/glad.c
 )
 
 target_include_directories(Dashboard PRIVATE ${WPILIB_INC_DIR} ${CMAKE_SOURCE_DIR})

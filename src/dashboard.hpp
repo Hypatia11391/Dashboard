@@ -27,6 +27,17 @@ class Dashboard
 
         int current_item_idx = 0;
 
+        GLuint fbo                = 0;
+        GLuint textureColorbuffer = 0;
+        GLuint rbo                = 0;
+        GLuint shaderProgram      = 0;
+        GLuint vao                = 0;
+        GLuint vbo                = 0;
+
+        void init3D();
+        void render3DScene();
+        GLuint compileShaders();
+
     private:
         nt::NetworkTableInstance inst;
         std::shared_ptr<nt::NetworkTable> table;

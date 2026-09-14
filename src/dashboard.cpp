@@ -1,10 +1,17 @@
+#include <include/glad/glad.h>
+
 #include <imgui.h>
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_opengl3.h>
 
 #include "stb_image.h"
 
+#define GLFW_INCLUDE_NONE
 #include <GLFW/glfw3.h>
+
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
 
 #include <frc/geometry/Pose2d.h>
 #include <networktables/DoubleArrayTopic.h>
@@ -86,6 +93,11 @@ void Dashboard::init()
     glfwMakeContextCurrent(window);
     glfwSwapInterval(1);
 
+    if (!gladLoadGLLoader((GLADloadproc) glfwGetProcAddress))
+    {
+        throw std::runtime_error("Failed to initialize GLAD");
+    }
+
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
     ImGui_ImplGlfw_InitForOpenGL(window, true);
@@ -96,6 +108,139 @@ void Dashboard::init()
     int my_image_width  = 0;
     int my_image_height = 0;
     fieldImg            = LoadTextureFromFile("field26.png", &my_image_width, &my_image_height);
+
+    init3D();
+}
+
+void Dashboard::init3D()
+{
+    // 1. Compile Shaders
+    shaderProgram = compileShaders();
+
+    // 2. Set up Vertex Data for a Cube
+    float vertices[] = {
+        // positions (x,y,z)     // colors (r,g,b)
+        -0.5f, -0.5f, -0.5f, 1.0f, 0.0f, 0.0f,
+        0.5f, -0.5f, -0.5f, 0.0f, 1.0f, 0.0f,
+        0.5f, 0.5f, -0.5f, 0.0f, 0.0f, 1.0f,
+        0.5f, 0.5f, -0.5f, 0.0f, 0.0f, 1.0f,
+        -0.5f, 0.5f, -0.5f, 1.0f, 1.0f, 0.0f,
+        -0.5f, -0.5f, -0.5f, 1.0f, 0.0f, 0.0f,
+
+        -0.5f, -0.5f, 0.5f, 1.0f, 0.0f, 0.0f,
+        0.5f, -0.5f, 0.5f, 0.0f, 1.0f, 0.0f,
+        0.5f, 0.5f, 0.5f, 0.0f, 0.0f, 1.0f,
+        0.5f, 0.5f, 0.5f, 0.0f, 0.0f, 1.0f,
+        -0.5f, 0.5f, 0.5f, 1.0f, 1.0f, 0.0f,
+        -0.5f, -0.5f, 0.5f, 1.0f, 0.0f, 0.0f,
+
+        -0.5f, 0.5f, 0.5f, 1.0f, 0.0f, 0.0f,
+        -0.5f, 0.5f, -0.5f, 0.0f, 1.0f, 0.0f,
+        -0.5f, -0.5f, -0.5f, 0.0f, 0.0f, 1.0f,
+        -0.5f, -0.5f, -0.5f, 0.0f, 0.0f, 1.0f,
+        -0.5f, -0.5f, 0.5f, 1.0f, 1.0f, 0.0f,
+        -0.5f, 0.5f, 0.5f, 1.0f, 0.0f, 0.0f,
+
+        0.5f, 0.5f, 0.5f, 1.0f, 0.0f, 0.0f,
+        0.5f, 0.5f, -0.5f, 0.0f, 1.0f, 0.0f,
+        0.5f, -0.5f, -0.5f, 0.0f, 0.0f, 1.0f,
+        0.5f, -0.5f, -0.5f, 0.0f, 0.0f, 1.0f,
+        0.5f, -0.5f, 0.5f, 1.0f, 1.0f, 0.0f,
+        0.5f, 0.5f, 0.5f, 1.0f, 0.0f, 0.0f,
+
+        -0.5f, -0.5f, -0.5f, 1.0f, 0.0f, 0.0f,
+        0.5f, -0.5f, -0.5f, 0.0f, 1.0f, 0.0f,
+        0.5f, -0.5f, 0.5f, 0.0f, 0.0f, 1.0f,
+        0.5f, -0.5f, 0.5f, 0.0f, 0.0f, 1.0f,
+        -0.5f, -0.5f, 0.5f, 1.0f, 1.0f, 0.0f,
+        -0.5f, -0.5f, -0.5f, 1.0f, 0.0f, 0.0f,
+
+        -0.5f, 0.5f, -0.5f, 1.0f, 0.0f, 0.0f,
+        0.5f, 0.5f, -0.5f, 0.0f, 1.0f, 0.0f,
+        0.5f, 0.5f, 0.5f, 0.0f, 0.0f, 1.0f,
+        0.5f, 0.5f, 0.5f, 0.0f, 0.0f, 1.0f,
+        -0.5f, 0.5f, 0.5f, 1.0f, 1.0f, 0.0f,
+        -0.5f, 0.5f, -0.5f, 1.0f, 0.0f, 0.0f};
+
+    glGenVertexArrays(1, &vao);
+    glGenBuffers(1, &vbo);
+
+    glBindVertexArray(vao);
+    glBindBuffer(GL_ARRAY_BUFFER, vbo);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+
+    // Position attribute
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*) 0);
+    glEnableVertexAttribArray(0);
+    // Color attribute
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*) (3 * sizeof(float)));
+    glEnableVertexAttribArray(1);
+
+    // 3. Create Framebuffer Object (FBO) for off-screen rendering
+    // Fixed resolution for now. For dynamic resizing, recreate this when the ImGui window resizes.
+    const int FBO_WIDTH  = 1280;
+    const int FBO_HEIGHT = 720;
+
+    glGenFramebuffers(1, &fbo);
+    glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+
+    // Create a color attachment texture
+    glGenTextures(1, &textureColorbuffer);
+    glBindTexture(GL_TEXTURE_2D, textureColorbuffer);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, FBO_WIDTH, FBO_HEIGHT, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, textureColorbuffer, 0);
+
+    // Create a renderbuffer object for depth and stencil attachment
+    glGenRenderbuffers(1, &rbo);
+    glBindRenderbuffer(GL_RENDERBUFFER, rbo);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, FBO_WIDTH, FBO_HEIGHT);
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, rbo);
+
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+}
+
+GLuint Dashboard::compileShaders()
+{
+    const char* vertexShaderSource = "#version 130\n"
+                                     "in vec3 aPos;\n"
+                                     "in vec3 aColor;\n"
+                                     "out vec3 ourColor;\n"
+                                     "uniform mat4 model;\n"
+                                     "uniform mat4 view;\n"
+                                     "uniform mat4 projection;\n"
+                                     "void main()\n"
+                                     "{\n"
+                                     "   gl_Position = projection * view * model * vec4(aPos, 1.0);\n"
+                                     "   ourColor = aColor;\n"
+                                     "}\0";
+
+    const char* fragmentShaderSource = "#version 130\n"
+                                       "in vec3 ourColor;\n"
+                                       "out vec4 FragColor;\n"
+                                       "void main()\n"
+                                       "{\n"
+                                       "   FragColor = vec4(ourColor, 1.0f);\n"
+                                       "}\n\0";
+
+    GLuint vertexShader = glCreateShader(GL_VERTEX_SHADER);
+    glShaderSource(vertexShader, 1, &vertexShaderSource, NULL);
+    glCompileShader(vertexShader);
+
+    GLuint fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
+    glShaderSource(fragmentShader, 1, &fragmentShaderSource, NULL);
+    glCompileShader(fragmentShader);
+
+    GLuint shaderProg = glCreateProgram();
+    glAttachShader(shaderProg, vertexShader);
+    glAttachShader(shaderProg, fragmentShader);
+    glLinkProgram(shaderProg);
+
+    glDeleteShader(vertexShader);
+    glDeleteShader(fragmentShader);
+
+    return shaderProg;
 }
 
 void Dashboard::mainLoop()
@@ -167,6 +312,8 @@ void Dashboard::mainLoop()
         kpPub.Set(kp);
         kiPub.Set(ki);
         kdPub.Set(kd);
+
+        render3DScene();
 
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplGlfw_NewFrame();
@@ -340,6 +487,14 @@ void Dashboard::mainLoop()
 
         ImGui::End();
 
+        ImGui::Begin("3D Field View");
+        // Get available space in this window
+        ImVec2 viewportSize = ImGui::GetContentRegionAvail();
+        // Render the FBO texture.
+        // Note: OpenGL textures are upside down in ImGui by default. Passing uv0=(0,1) and uv1=(1,0) flips it.
+        ImGui::Image((void*) (intptr_t) textureColorbuffer, viewportSize, ImVec2(0, 1), ImVec2(1, 0));
+        ImGui::End();
+
         ImGui::Render();
 
         int display_w, display_h;
@@ -353,8 +508,56 @@ void Dashboard::mainLoop()
     }
 }
 
+void Dashboard::render3DScene()
+{
+    // Bind our off-screen framebuffer
+    glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+
+    // Setup viewport to match FBO dimensions
+    glViewport(0, 0, 1280, 720);
+
+    // Enable depth testing (crucial for 3D)
+    glEnable(GL_DEPTH_TEST);
+
+    glClearColor(0.2f, 0.2f, 0.2f, 1.0f);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+    glUseProgram(shaderProgram);
+
+    // Create transformations
+    glm::mat4 model = glm::mat4(1.0f);
+    // Rotate cube over time
+    model = glm::rotate(model, (float) glfwGetTime(), glm::vec3(0.5f, 1.0f, 0.0f));
+
+    glm::mat4 view = glm::mat4(1.0f);
+    // Move camera back a bit
+    view = glm::translate(view, glm::vec3(0.0f, 0.0f, -3.0f));
+
+    glm::mat4 projection = glm::perspective(glm::radians(45.0f), (float) 1280 / (float) 720, 0.1f, 100.0f);
+
+    // Pass matrices to shaders
+    glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "model"), 1, GL_FALSE, glm::value_ptr(model));
+    glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "view"), 1, GL_FALSE, glm::value_ptr(view));
+    glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
+
+    // Render the cube
+    glBindVertexArray(vao);
+    glDrawArrays(GL_TRIANGLES, 0, 36);
+
+    // Reset state for ImGui
+    glDisable(GL_DEPTH_TEST);
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+}
+
 void Dashboard::cleanUp()
 {
+    glDeleteVertexArrays(1, &vao);
+    glDeleteBuffers(1, &vbo);
+    glDeleteProgram(shaderProgram);
+    glDeleteFramebuffers(1, &fbo);
+    glDeleteTextures(1, &textureColorbuffer);
+    glDeleteRenderbuffers(1, &rbo);
+
     ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplGlfw_Shutdown();
     ImGui::DestroyContext();
