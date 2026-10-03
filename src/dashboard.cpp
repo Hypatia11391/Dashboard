@@ -1,6 +1,8 @@
+#include <chrono>
 #include <imgui.h>
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_opengl3.h>
+#include <implot.h>
 
 #include "stb_image.h"
 
@@ -15,11 +17,11 @@
 
 #include <iostream>
 #include <stdexcept>
+#include <vector>
 
 #include "src/constants.hpp"
 #include "src/dashboard.hpp"
 #include "src/primitives.hpp"
-#include "units/angle.h"
 
 Dashboard::Dashboard()
 {
@@ -34,35 +36,43 @@ void Dashboard::run()
 
 void Dashboard::init()
 {
-    inst  = nt::NetworkTableInstance::GetDefault();
+    auto inst = nt::NetworkTableInstance::GetDefault();
+    inst.StartClient4("wsl_client");
+    inst.SetServer("127.0.0.1");
     table = inst.GetTable("datatable");
 
-    fieldTable       = table->GetSubTable("field");
-    robotPoseSub     = fieldTable->GetDoubleArrayTopic("robot").Subscribe({});
-    robotVelocitySub = fieldTable->GetDoubleArrayTopic("velocity").Subscribe({});
-    trajPoseSub      = fieldTable->GetDoubleArrayTopic("trajectory").Subscribe({});
+    nt::PubSubOptions options = nt::PubSubOptions{};
+    options.periodic          = 0.02;
 
-    intakeLiftPosSub       = table->GetDoubleTopic("intake-lift-pos").Subscribe(0.0);
-    intakeLiftTargetPosSub = table->GetDoubleTopic("intake-lift-target-pos").Subscribe(0.0);
-    intakeFeedPowerSub     = table->GetDoubleTopic("intake-feed-power").Subscribe(0.0);
+    fieldTable        = table->GetSubTable("field");
+    robotPoseSub      = fieldTable->GetDoubleArrayTopic("robot").Subscribe({}, options);
+    robotVelocitySub  = fieldTable->GetDoubleArrayTopic("velocity").Subscribe({}, options);
+    targetVelocitySub = fieldTable->GetDoubleArrayTopic("target-velocity").Subscribe({}, options);
+    trajPoseSub       = fieldTable->GetDoubleArrayTopic("trajectory").Subscribe({}, options);
 
-    feedPowerSub = table->GetDoubleTopic("feed-power").Subscribe(0.0);
+    intakeLiftPosSub       = table->GetDoubleTopic("intake-lift-pos").Subscribe(0.0, options);
+    intakeLiftTargetPosSub = table->GetDoubleTopic("intake-lift-target-pos").Subscribe(0.0, options);
+    intakeFeedPowerSub     = table->GetDoubleTopic("intake-feed-power").Subscribe(0.0, options);
 
-    kickerPowerSub = table->GetDoubleTopic("kicker-power").Subscribe(0.0);
+    feedPowerSub = table->GetDoubleTopic("feed-power").Subscribe(0.0, options);
 
-    shooterLeftRPMSub        = table->GetDoubleTopic("shooter-left-rpm").Subscribe(0.0);
-    shooterLeftTargetRPMSub  = table->GetDoubleTopic("shooter-left-target-rpm").Subscribe(0.0);
-    shooterRightRPMSub       = table->GetDoubleTopic("shooter-right-rpm").Subscribe(0.0);
-    shooterRightTargetRPMSub = table->GetDoubleTopic("shooter-right-target-rpm").Subscribe(0.0);
+    kickerPowerSub = table->GetDoubleTopic("kicker-power").Subscribe(0.0, options);
 
-    vSub = table->GetDoubleTopic("v").Subscribe(0.0);
+    shooterLeftRPMSub        = table->GetDoubleTopic("shooter-left-rpm").Subscribe(0.0, options);
+    shooterLeftTargetRPMSub  = table->GetDoubleTopic("shooter-left-target-rpm").Subscribe(0.0, options);
+    shooterRightRPMSub       = table->GetDoubleTopic("shooter-right-rpm").Subscribe(0.0, options);
+    shooterRightTargetRPMSub = table->GetDoubleTopic("shooter-right-target-rpm").Subscribe(0.0, options);
+
+    vSub = table->GetDoubleTopic("v").Subscribe(0.0, options);
 
     autoPub     = table->GetStringTopic("selected-auto").Publish();
-    autoListSub = table->GetStringArrayTopic("auto-list").Subscribe({});
+    autoListSub = table->GetStringArrayTopic("auto-list").Subscribe({}, options);
 
-    kpPub = table->GetDoubleTopic("pid-kp").Publish();
-    kiPub = table->GetDoubleTopic("pid-ki").Publish();
-    kdPub = table->GetDoubleTopic("pid-kd").Publish();
+    isAutoSub = table->GetBooleanTopic("is-in-auto").Subscribe(false, options);
+
+    kpPub = table->GetDoubleTopic("pid-kp").Publish(options);
+    kiPub = table->GetDoubleTopic("pid-ki").Publish(options);
+    kdPub = table->GetDoubleTopic("pid-kd").Publish(options);
 
     inst.StartClient4("Dashboard Client");
     inst.SetServerTeam(11391);
@@ -84,10 +94,11 @@ void Dashboard::init()
     }
 
     glfwMakeContextCurrent(window);
-    glfwSwapInterval(1);
+    glfwSwapInterval(0);
 
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
+    ImPlot::CreateContext();
     ImGui_ImplGlfw_InitForOpenGL(window, true);
     ImGui_ImplOpenGL3_Init("#version 130");
 
@@ -96,8 +107,13 @@ void Dashboard::init()
     int my_image_width  = 0;
     int my_image_height = 0;
     fieldImg            = LoadTextureFromFile("field26.png", &my_image_width, &my_image_height);
-}
 
+    plotData = {};
+
+    auto currentTime = std::chrono::high_resolution_clock::now().time_since_epoch();
+
+    startTime = std::chrono::duration_cast<std::chrono::milliseconds>(currentTime);
+}
 void Dashboard::mainLoop()
 {
     double kp = 0, ki = 0, kd = 0;
@@ -133,7 +149,27 @@ void Dashboard::mainLoop()
         }
         else
         {
-            velocity = {};
+            velocity = {units::meter_t(0),
+                        units::meter_t(0),
+                        {units::degree_t(0)}};
+        }
+
+        auto targetVelocityData = targetVelocitySub.Get();
+
+        frc::Pose2d targetVelocity;
+
+        if (targetVelocityData.size() >= 3)
+        {
+
+            targetVelocity = {units::meter_t(targetVelocityData[0]),
+                              units::meter_t(targetVelocityData[1]),
+                              {units::degree_t(targetVelocityData[2])}};
+        }
+        else
+        {
+            targetVelocity = {units::meter_t(0),
+                              units::meter_t(0),
+                              {units::degree_t(0)}};
         }
 
         auto trajData = trajPoseSub.Get();
@@ -164,9 +200,20 @@ void Dashboard::mainLoop()
         float shooterRightRPM       = shooterRightRPMSub.Get();
         float shooterRightTargetRPM = shooterRightTargetRPMSub.Get();
 
+        bool isAuto = isAutoSub.Get();
+
         kpPub.Set(kp);
         kiPub.Set(ki);
         kdPub.Set(kd);
+
+        auto nsTime = std::chrono::high_resolution_clock::now();
+
+        auto msTime = std::chrono::duration_cast<std::chrono::milliseconds>(nsTime.time_since_epoch());
+
+        if (isAuto)
+        {
+            plotData.append(velocity, targetVelocity, msTime - startTime);
+        }
 
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplGlfw_NewFrame();
@@ -183,9 +230,9 @@ void Dashboard::mainLoop()
 
         ImGui::Separator();
 
-        ImGui::Text("DX Value:      %.3f", (float) velocity.X());
-        ImGui::Text("DY Value:      %.3f", (float) velocity.Y());
-        ImGui::Text("Omega Value:   %.3f", (float) velocity.Rotation().Radians());
+        ImGui::Text("DX Value:      %.3f", (float) targetVelocity.X());
+        ImGui::Text("DY Value:      %.3f", (float) targetVelocity.Y());
+        ImGui::Text("Omega Value:   %.3f", (float) targetVelocity.Rotation().Radians());
 
         ImGui::Separator();
 
@@ -340,6 +387,48 @@ void Dashboard::mainLoop()
 
         ImGui::End();
 
+        ImGui::Begin("Plots");
+
+        if (ImPlot::BeginPlot("DX"))
+        {
+            ImPlot::SetupAxis(ImAxis_X1, "Time", ImPlotAxisFlags_AutoFit);
+            ImPlot::SetupAxis(ImAxis_Y1, "Meters/Second", ImPlotAxisFlags_AutoFit);
+
+            ImPlot::PlotLine("DX", plotData.times.data(), plotData.dx.data(), plotData.dx.size());
+
+            ImPlot::PlotLine("Target DX", plotData.times.data(), plotData.dxTarget.data(), plotData.dxTarget.size());
+            ImPlot::EndPlot();
+        }
+
+        if (ImPlot::BeginPlot("DY"))
+        {
+            ImPlot::SetupAxis(ImAxis_X1, "Time", ImPlotAxisFlags_AutoFit);
+            ImPlot::SetupAxis(ImAxis_Y1, "Meters/Second", ImPlotAxisFlags_AutoFit);
+
+            ImPlot::PlotLine("DY", plotData.times.data(), plotData.dy.data(), plotData.dy.size());
+
+            ImPlot::PlotLine("Target DY", plotData.times.data(), plotData.dyTarget.data(), plotData.dyTarget.size());
+            ImPlot::EndPlot();
+        }
+
+        if (ImPlot::BeginPlot("Angular Velocity"))
+        {
+            ImPlot::SetupAxis(ImAxis_X1, "Time", ImPlotAxisFlags_AutoFit);
+            ImPlot::SetupAxis(ImAxis_Y1, "Degs/Second", ImPlotAxisFlags_AutoFit);
+
+            ImPlot::PlotLine("Angular Velocity", plotData.times.data(), plotData.omega.data(), plotData.omegaTarget.size());
+
+            ImPlot::PlotLine("Target Angular Velocity", plotData.times.data(), plotData.omegaTarget.data(), plotData.omegaTarget.size());
+            ImPlot::EndPlot();
+        }
+
+        if (ImGui::Button("Clear Graph"))
+        {
+            plotData.clear();
+        }
+
+        ImGui::End();
+
         ImGui::Render();
 
         int display_w, display_h;
@@ -357,6 +446,7 @@ void Dashboard::cleanUp()
 {
     ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplGlfw_Shutdown();
+    ImPlot::DestroyContext();
     ImGui::DestroyContext();
     glfwDestroyWindow(window);
     glfwTerminate();
