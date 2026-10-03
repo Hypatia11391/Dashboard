@@ -25,12 +25,13 @@ LDLIBS := -lntcore -lwpinet -lwpiutil -lglfw -lGL -ldl
 SRCS := main.cpp src/dashboard.cpp src/primitives.cpp
 SRCS += imgui/imgui.cpp imgui/imgui_demo.cpp imgui/imgui_draw.cpp imgui/imgui_tables.cpp imgui/imgui_widgets.cpp
 SRCS += imgui/backends/imgui_impl_glfw.cpp imgui/backends/imgui_impl_opengl3.cpp
+SRCS += vendor/implot/implot.cpp vendor/implot/implot_items.cpp
 
 TARGET := dashboard
 
 OBJS = $(SRCS:.cpp=.o)
 
-INCFLAGS = -Iimgui -Iimgui/backends -I.
+INCFLAGS = -Iimgui -Iimgui/backends -Ivendor/implot -I.
 
 .PHONY: all clean
 
