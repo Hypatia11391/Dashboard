@@ -13,6 +13,7 @@ find_package(OpenGL REQUIRED)
 find_package(glfw3 REQUIRED)
 
 set(IMGUI_DIR ${CMAKE_CURRENT_SOURCE_DIR}/vendor/imgui)
+set(IMPLOT_DIR ${CMAKE_CURRENT_SOURCE_DIR}/vendor/implot)
 file(GLOB IMGUI_SOURCES 
     "${IMGUI_DIR}/*.cpp"
     "${IMGUI_DIR}/backends/imgui_impl_glfw.cpp"
@@ -20,13 +21,15 @@ file(GLOB IMGUI_SOURCES
 )
 
 add_library(imgui STATIC ${IMGUI_SOURCES})
-target_include_directories(imgui PUBLIC ${IMGUI_DIR} ${IMGUI_DIR}/backends)
+target_include_directories(imgui PUBLIC ${IMGUI_DIR} ${IMGUI_DIR}/backends ${IMPLOT_DIR})
 target_link_libraries(imgui PUBLIC glfw OpenGL::GL ${CMAKE_DL_LIBS})
 
 add_executable(Dashboard 
     main.cpp 
     src/dashboard.cpp
     src/primitives.cpp
+    ${IMPLOT_DIR}/implot.cpp
+    ${IMPLOT_DIR}/implot_items.cpp
 )
 
 target_include_directories(Dashboard PRIVATE ${WPILIB_INC_DIR} ${CMAKE_SOURCE_DIR})
