@@ -86,6 +86,11 @@ void Dashboard::init()
     GLFWmonitor* monitor    = glfwGetPrimaryMonitor();
     const GLFWvidmode* mode = glfwGetVideoMode(monitor);
 
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 2);
+    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);  // 3.2+ only
+    glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);            // Required on macOS
+    
     window = glfwCreateWindow(mode->width, mode->height, "Fullscreen Window", monitor, NULL);
     if (!window)
     {
@@ -100,7 +105,7 @@ void Dashboard::init()
     ImGui::CreateContext();
     ImPlot::CreateContext();
     ImGui_ImplGlfw_InitForOpenGL(window, true);
-    ImGui_ImplOpenGL3_Init("#version 130");
+    ImGui_ImplOpenGL3_Init("#version 150 core");
 
     ImGui::StyleColorsDark();
 
