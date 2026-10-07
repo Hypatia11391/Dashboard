@@ -76,6 +76,8 @@ class Dashboard
         nt::NetworkTableInstance inst;
         std::shared_ptr<nt::NetworkTable> table;
 
+        nt::DoubleArraySubscriber appliedOutputSub;
+
         std::shared_ptr<nt::NetworkTable> fieldTable;
         nt::DoubleArraySubscriber robotPoseSub;
         nt::DoubleArraySubscriber trajPoseSub;
