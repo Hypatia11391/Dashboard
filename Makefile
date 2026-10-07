@@ -1,6 +1,8 @@
 CXX := g++
 
-NATIVE := $(VIRTUAL_ENV)/lib/python3.11/site-packages/native
+PYTHON_SITE := $(shell python3 -c "import site; print(site.getsitepackages()[0])")
+NATIVE := $(PYTHON_SITE)/native
+#NATIVE := $(VIRTUAL_ENV)/lib/python3.11/site-packages/native
 WPI := $(NATIVE)/ntcore
 
 CXXFLAGS := -std=c++20 -O2 \
@@ -15,12 +17,20 @@ LDFLAGS := \
     -L$(NATIVE)/ntcore/lib \
     -L$(NATIVE)/wpinet/lib \
     -L$(NATIVE)/wpiutil/lib \
-		-Wl,--disable-new-dtags \
     -Wl,-rpath,$(NATIVE)/ntcore/lib \
     -Wl,-rpath,$(NATIVE)/wpinet/lib \
     -Wl,-rpath,$(NATIVE)/wpiutil/lib
 
-LDLIBS := -lntcore -lwpinet -lwpiutil -lglfw -lGL -ldl
+LDLIBS := -lntcore -lwpinet -lwpiutil
+UNAME_S := $(shell uname -s)
+ifneq ($(findstring Darwin,$(UNAME_S)),)
+	CXXFLAGS += -I/usr/local/include
+	LDFLAGS += -L/usr/local/lib
+	LDLIBS += -lglfw3 -framework Cocoa -framework OpenGL -framework IOKit -framework CoreVideo -framework QuartzCore
+else
+	LDFLAGS += -Wl,--disable-new-dtags
+	LDLIBS += -lglfw -lGL -ldl
+endif
 
 SRCS := main.cpp src/dashboard.cpp src/primitives.cpp
 SRCS += imgui/imgui.cpp imgui/imgui_demo.cpp imgui/imgui_draw.cpp imgui/imgui_tables.cpp imgui/imgui_widgets.cpp
