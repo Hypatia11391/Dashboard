@@ -1,4 +1,5 @@
 #include <chrono>
+#include <cstdio>
 #include <imgui.h>
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_opengl3.h>
@@ -15,9 +16,14 @@
 #include <networktables/NetworkTableInstance.h>
 #include <networktables/StringTopic.h>
 
+#include <fstream>
 #include <iostream>
 #include <stdexcept>
 #include <vector>
+
+#include <vendor/json.hpp>
+
+using json = nlohmann::json;
 
 #include "src/constants.hpp"
 #include "src/dashboard.hpp"
@@ -43,6 +49,8 @@ void Dashboard::init()
 
     nt::PubSubOptions options = nt::PubSubOptions{};
     options.periodic          = 0.02;
+
+    appliedOutputSub = table->GetDoubleArrayTopic("drive-applied-output").Subscribe({}, options);
 
     fieldTable        = table->GetSubTable("field");
     robotPoseSub      = fieldTable->GetDoubleArrayTopic("robot").Subscribe({}, options);
@@ -118,9 +126,13 @@ void Dashboard::mainLoop()
 {
     double kp = 0, ki = 0, kd = 0;
 
+    json outputArray = json::array();
+
     while (!glfwWindowShouldClose(window))
     {
         glfwPollEvents();
+
+        auto appliedDriveOutputs = appliedOutputSub.Get();
 
         float v = vSub.Get();
 
@@ -213,6 +225,26 @@ void Dashboard::mainLoop()
         if (isAuto)
         {
             plotData.append(velocity, targetVelocity, msTime - startTime);
+        }
+        // Pose
+        // Velocity
+        // Time
+        // Applied output
+        // time
+
+        json frameData;
+        frameData["time"]            = nt::Now();
+        frameData["pose"]            = poseData;
+        frameData["velocity"]        = velocityData;
+        frameData["applied-outputs"] = appliedDriveOutputs;
+
+        outputArray.push_back(frameData);
+
+        std::ofstream file("output.json", std::ios::trunc);
+        if (file.is_open())
+        {
+            file << outputArray.dump(4);
+            file.close();
         }
 
         ImGui_ImplOpenGL3_NewFrame();
