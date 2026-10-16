@@ -96,9 +96,9 @@ void Dashboard::init()
 
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 2);
-    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);  // 3.2+ only
-    glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);            // Required on macOS
-    
+    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE); // 3.2+ only
+    glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);           // Required on macOS
+
     window = glfwCreateWindow(mode->width, mode->height, "Fullscreen Window", monitor, NULL);
     if (!window)
     {
@@ -242,13 +242,12 @@ void Dashboard::mainLoop()
         frameData["pose"]            = poseData;
         frameData["velocity"]        = velocityData;
         frameData["applied-outputs"] = appliedDriveOutputs;
+        frameData["target-velocity"] = targetVelocityData;
 
-        outputArray.push_back(frameData);
-
-        std::ofstream file("output.json", std::ios::trunc);
+        std::ofstream file("output.json", std::ios::app);
         if (file.is_open())
         {
-            file << outputArray.dump(4);
+            file << frameData.dump() << std::endl;
             file.close();
         }
 
