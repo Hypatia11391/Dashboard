@@ -255,10 +255,6 @@ void Dashboard::mainLoop()
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
 
-        ImGui::Begin("Connection status");
-        ImGui::Text("NetworkTables Status: %s", inst.IsConnected() ? "Connected" : "Disconnected");
-        ImGui::End();
-
         ImGui::Begin("Telemetry Data");
 
         ImGui::Text("X Position:    %.3f", (float) pose.X());
@@ -377,13 +373,23 @@ void Dashboard::mainLoop()
 
         ImGui::SliderFloat("Voltage", &v, 0, 14, "%.3f");
 
+        ImGui::Separator();
+
+        ImGui::InputDouble("KP", &kp, 0.001f, 1.0f, "%.4f");
+        ImGui::InputDouble("KI", &ki, 0.001f, 1.0f, "%.4f");
+        ImGui::InputDouble("KD", &kd, 0.001f, 1.0f, "%.4f");
+
+        ImGui::Separator();
+
+        ImGui::Text("NetworkTables Status: %s", inst.IsConnected() ? "Connected" : "Disconnected");
+
         ImGui::PopStyleColor();
 
         ImGui::EndDisabled();
 
         ImGui::End();
 
-        ImGui::Begin("Intake State");
+        ImGui::Begin("Mechanism State");
 
         ImGui::Text("Intake Lift Pos:                 %.3f", intakeLiftPos);
         ImGui::Text("Intake Lift Target Pos:          %.3f", intakeLiftTargetPos);
@@ -392,34 +398,18 @@ void Dashboard::mainLoop()
 
         ImGui::Text("Intake Feed Power:               %.3f", intakeFeedPower);
 
-        ImGui::End();
-
-        ImGui::Begin("Feed State");
+        ImGui::Separator();
 
         ImGui::Text("Feed Power: %.3f", feedPower);
 
-        ImGui::End();
-
-        ImGui::Begin("Kicker State");
+        ImGui::Separator();
 
         ImGui::Text("Kicker Power: %.3f", kickerPower);
-
-        ImGui::End();
-
-        ImGui::Begin("Shooter State");
 
         ImGui::Text("Shooter Left RPM:         %.3f", shooterLeftRPM);
         ImGui::Text("Shooter Left Target RPM:  %.3f", shooterLeftTargetRPM);
         ImGui::Text("Shooter Right RPM:        %.3f", shooterRightRPM);
         ImGui::Text("Shooter Right Target RPM: %.3f", shooterRightTargetRPM);
-
-        ImGui::End();
-
-        ImGui::Begin("PID");
-
-        ImGui::InputDouble("KP", &kp, 0.001f, 1.0f, "%.4f");
-        ImGui::InputDouble("KI", &ki, 0.001f, 1.0f, "%.4f");
-        ImGui::InputDouble("KD", &kd, 0.001f, 1.0f, "%.4f");
 
         ImGui::End();
 
