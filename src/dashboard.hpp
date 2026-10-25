@@ -1,3 +1,5 @@
+#pragma once
+
 #include <GLFW/glfw3.h>
 
 #include <frc/geometry/Pose2d.h>
@@ -17,13 +19,46 @@ struct PlotData
         std::vector<double> dx{};
         std::vector<double> dy{};
         std::vector<double> omega{};
-        std::vector<double> dxTarget{};
-        std::vector<double> dyTarget{};
-        std::vector<double> omegaTarget{};
+        std::vector<frc::Pose2d> pose{};
         std::vector<double> times{};
 
     public:
-        void append(frc::Pose2d velocity, frc::Pose2d targetVelocity, std::chrono::milliseconds time)
+        void append(frc::Pose2d velocity, frc::Pose2d currentPose, std::chrono::milliseconds time)
+        {
+            dx.push_back(velocity.X().value());
+            dy.push_back(velocity.Y().value());
+            omega.push_back(velocity.Rotation().Degrees().value());
+
+            double doubleTime = std::chrono::duration<double, std::milli>(time).count();
+
+            pose.push_back(currentPose);
+
+            times.push_back(doubleTime);
+        }
+
+        void clear()
+        {
+            dx.clear();
+            dy.clear();
+            omega.clear();
+            pose.clear();
+            times.clear();
+        }
+};
+struct AutoPlotData
+{
+    public:
+        std::vector<double> dx{};
+        std::vector<double> dy{};
+        std::vector<double> omega{};
+        std::vector<double> dxTarget{};
+        std::vector<double> dyTarget{};
+        std::vector<double> omegaTarget{};
+        std::vector<frc::Pose2d> pose{};
+        std::vector<double> times{};
+
+    public:
+        void append(frc::Pose2d velocity, frc::Pose2d targetVelocity, frc::Pose2d currentPose, std::chrono::milliseconds time)
         {
             dx.push_back(velocity.X().value());
             dy.push_back(velocity.Y().value());
@@ -34,6 +69,8 @@ struct PlotData
             omegaTarget.push_back(targetVelocity.Rotation().Degrees().value());
 
             double doubleTime = std::chrono::duration<double, std::milli>(time).count();
+
+            pose.push_back(currentPose);
 
             times.push_back(doubleTime);
         }
@@ -109,4 +146,5 @@ class Dashboard
         nt::BooleanSubscriber isAutoSub;
 
         PlotData plotData;
+        AutoPlotData autoPlotData;
 };

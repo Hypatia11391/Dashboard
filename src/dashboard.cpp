@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <chrono>
 #include <cstdio>
 #include <imgui.h>
@@ -5,17 +6,21 @@
 #include <imgui_impl_opengl3.h>
 #include <implot.h>
 
+#include "networktables/Topic.h"
 #include "stb_image.h"
 
 #include <GLFW/glfw3.h>
 
 #include <frc/geometry/Pose2d.h>
+#include <iterator>
 #include <networktables/DoubleArrayTopic.h>
 #include <networktables/DoubleTopic.h>
+#include <networktables/GenericEntry.h>
 #include <networktables/NetworkTable.h>
 #include <networktables/NetworkTableInstance.h>
 #include <networktables/StringTopic.h>
 
+#include <algorithm>
 #include <fstream>
 #include <iostream>
 #include <stdexcept>
@@ -121,7 +126,7 @@ void Dashboard::init()
     int my_image_height = 0;
     fieldImg            = LoadTextureFromFile("field26.png", &my_image_width, &my_image_height);
 
-    plotData = {};
+    autoPlotData = {};
 
     auto currentTime = std::chrono::high_resolution_clock::now().time_since_epoch();
 
@@ -132,6 +137,8 @@ void Dashboard::mainLoop()
     double kp = 0, ki = 0, kd = 0;
 
     json outputArray = json::array();
+
+    std::vector<nt::GenericSubscriber> customSubs{};
 
     while (!glfwWindowShouldClose(window))
     {
@@ -229,26 +236,7 @@ void Dashboard::mainLoop()
 
         if (isAuto)
         {
-            plotData.append(velocity, targetVelocity, msTime - startTime);
-        }
-        // Pose
-        // Velocity
-        // Time
-        // Applied output
-        // time
-
-        json frameData;
-        frameData["time"]            = nt::Now();
-        frameData["pose"]            = poseData;
-        frameData["velocity"]        = velocityData;
-        frameData["applied-outputs"] = appliedDriveOutputs;
-        frameData["target-velocity"] = targetVelocityData;
-
-        std::ofstream file("output.json", std::ios::app);
-        if (file.is_open())
-        {
-            file << frameData.dump() << std::endl;
-            file.close();
+            autoPlotData.append(velocity, targetVelocity, pose, msTime - startTime);
         }
 
         ImGui_ImplOpenGL3_NewFrame();
@@ -274,19 +262,19 @@ void Dashboard::mainLoop()
 
         ImVec2 topLeft = ImGui::GetCursorScreenPos();
 
-        ImGui::Dummy({consts::fieldW * consts::fieldScaleFactor, consts::fieldH * consts::fieldScaleFactor + consts::robotH * consts::fieldScaleFactor});
+        ImGui::Dummy({Consts::fieldW * Consts::fieldScaleFactor, Consts::fieldH * Consts::fieldScaleFactor + Consts::robotH * Consts::fieldScaleFactor});
 
         drawList->AddImage((void*) (intptr_t) fieldImg,
-                           {topLeft.x, topLeft.y + consts::robotH * consts::fieldScaleFactor / 2},
-                           {topLeft.x + consts::fieldW * consts::fieldScaleFactor,
-                            topLeft.y + consts::fieldH * consts::fieldScaleFactor + consts::robotH * consts::fieldScaleFactor / 2},
+                           {topLeft.x, topLeft.y + Consts::robotH * Consts::fieldScaleFactor / 2},
+                           {topLeft.x + Consts::fieldW * Consts::fieldScaleFactor,
+                            topLeft.y + Consts::fieldH * Consts::fieldScaleFactor + Consts::robotH * Consts::fieldScaleFactor / 2},
                            {(float) 90 / 3508, (float) 90 / 1814},
                            {1 - (float) 90 / 3508, 1 - (float) 90 / 1814});
 
         drawRotatedRect(drawList,
-                        {topLeft.x + (float) pose.X() * consts::fieldScaleFactor,
-                         topLeft.y + consts::fieldH * consts::fieldScaleFactor - (float) pose.Y() * consts::fieldScaleFactor + consts::robotH * consts::fieldScaleFactor / 2},
-                        {consts::robotH * consts::fieldScaleFactor, consts::robotW * consts::fieldScaleFactor},
+                        {topLeft.x + (float) pose.X() * Consts::fieldScaleFactor,
+                         topLeft.y + Consts::fieldH * Consts::fieldScaleFactor - (float) pose.Y() * Consts::fieldScaleFactor + Consts::robotH * Consts::fieldScaleFactor / 2},
+                        {Consts::robotH * Consts::fieldScaleFactor, Consts::robotW * Consts::fieldScaleFactor},
                         -(float) pose.Rotation().Degrees(),
                         IM_COL32(100, 125, 200, 255));
 
@@ -295,8 +283,8 @@ void Dashboard::mainLoop()
 
         for (int i = 0; i < trajPoints.size(); i++)
         {
-            trajPointsToDraw[i] = {topLeft.x + (float) trajPoints[i].X() * consts::fieldScaleFactor,
-                                   topLeft.y + consts::fieldH * consts::fieldScaleFactor - (float) trajPoints[i].Y() * consts::fieldScaleFactor};
+            trajPointsToDraw[i] = {topLeft.x + (float) trajPoints[i].X() * Consts::fieldScaleFactor,
+                                   topLeft.y + Consts::fieldH * Consts::fieldScaleFactor - (float) trajPoints[i].Y() * Consts::fieldScaleFactor};
         }
 
         drawList->AddPolyline(
@@ -306,9 +294,58 @@ void Dashboard::mainLoop()
             ImDrawFlags_None,
             2.0f);
 
+        static bool showHistory   = false;
+        static bool appendHistory = true;
+
+        if (showHistory)
+        {
+
+            std::vector<ImVec2> historyPoints;
+            historyPoints.resize(plotData.pose.size());
+
+            for (int i = 0; i < plotData.pose.size(); i++)
+            {
+                historyPoints[i] = {topLeft.x + (float) plotData.pose[i].X() * Consts::fieldScaleFactor,
+                                    topLeft.y + Consts::fieldH * Consts::fieldScaleFactor - (float) plotData.pose[i].Y() * Consts::fieldScaleFactor};
+            }
+
+            int numPoints = std::min<int>(historyPoints.size(), 10000);
+
+            drawList->AddPolyline(historyPoints.data() + historyPoints.size() - numPoints,
+                                  numPoints,
+                                  IM_COL32(0, 255, 0, 255),
+                                  2.0f);
+        }
+
+        drawCheckBox("Append History", appendHistory);
+
+        if (appendHistory)
+        {
+            plotData.append(velocity, pose, msTime - startTime);
+        }
+
+        drawCheckBox("Show History", showHistory);
+        if (ImGui::Button("Clear History"))
+        {
+            plotData.clear();
+        }
+
         ImGui::Separator();
 
-        drawCompass(drawList, "Heading:", -(float) pose.Rotation().Degrees() * consts::PI / 180, 200);
+        drawCompass(drawList, "Heading:", -(float) pose.Rotation().Degrees() * Consts::PI / 180, 200);
+
+        // Code to have a chassis speed thing not using
+        // ImGui::Separator();
+
+        // topLeft = ImGui::GetCursorScreenPos();
+
+        // ImGui::Dummy(ImVec2(200 * 2.0f, 200 * 2.0f));
+
+        // frc::Translation2d norm = velocity.Translation() / velocity.Translation().Norm().value();
+        // DrawVectorArrow(drawList,
+        //                 {topLeft.x + 200, topLeft.y + 200},
+        //                 {topLeft.x + 200 + (float) norm.X(), topLeft.y + 200 + (float) norm.Y()},
+        //                 IM_COL32(255, 255, 255, 255));
 
         ImGui::End();
 
@@ -420,9 +457,9 @@ void Dashboard::mainLoop()
             ImPlot::SetupAxis(ImAxis_X1, "Time", ImPlotAxisFlags_AutoFit);
             ImPlot::SetupAxis(ImAxis_Y1, "Meters/Second", ImPlotAxisFlags_AutoFit);
 
-            ImPlot::PlotLine("DX", plotData.times.data(), plotData.dx.data(), plotData.dx.size());
+            ImPlot::PlotLine("DX", autoPlotData.times.data(), autoPlotData.dx.data(), autoPlotData.dx.size());
 
-            ImPlot::PlotLine("Target DX", plotData.times.data(), plotData.dxTarget.data(), plotData.dxTarget.size());
+            ImPlot::PlotLine("Target DX", autoPlotData.times.data(), autoPlotData.dxTarget.data(), autoPlotData.dxTarget.size());
             ImPlot::EndPlot();
         }
 
@@ -431,9 +468,9 @@ void Dashboard::mainLoop()
             ImPlot::SetupAxis(ImAxis_X1, "Time", ImPlotAxisFlags_AutoFit);
             ImPlot::SetupAxis(ImAxis_Y1, "Meters/Second", ImPlotAxisFlags_AutoFit);
 
-            ImPlot::PlotLine("DY", plotData.times.data(), plotData.dy.data(), plotData.dy.size());
+            ImPlot::PlotLine("DY", autoPlotData.times.data(), autoPlotData.dy.data(), autoPlotData.dy.size());
 
-            ImPlot::PlotLine("Target DY", plotData.times.data(), plotData.dyTarget.data(), plotData.dyTarget.size());
+            ImPlot::PlotLine("Target DY", autoPlotData.times.data(), autoPlotData.dyTarget.data(), autoPlotData.dyTarget.size());
             ImPlot::EndPlot();
         }
 
@@ -442,15 +479,120 @@ void Dashboard::mainLoop()
             ImPlot::SetupAxis(ImAxis_X1, "Time", ImPlotAxisFlags_AutoFit);
             ImPlot::SetupAxis(ImAxis_Y1, "Degs/Second", ImPlotAxisFlags_AutoFit);
 
-            ImPlot::PlotLine("Angular Velocity", plotData.times.data(), plotData.omega.data(), plotData.omegaTarget.size());
+            ImPlot::PlotLine("Angular Velocity", autoPlotData.times.data(), autoPlotData.omega.data(), autoPlotData.omegaTarget.size());
 
-            ImPlot::PlotLine("Target Angular Velocity", plotData.times.data(), plotData.omegaTarget.data(), plotData.omegaTarget.size());
+            ImPlot::PlotLine("Target Angular Velocity", autoPlotData.times.data(), autoPlotData.omegaTarget.data(), autoPlotData.omegaTarget.size());
             ImPlot::EndPlot();
         }
 
         if (ImGui::Button("Clear Graph"))
         {
-            plotData.clear();
+            autoPlotData.clear();
+        }
+
+        ImGui::End();
+
+        ImGui::Begin("Recording");
+
+        static bool recording;
+        drawCheckBox("Is Recording", recording);
+
+        ImGui::Separator();
+
+        static bool isRecordingTime;
+        static bool isRecordingPose;
+        static bool isRecordingVelocity;
+        static bool isRecordingAppliedOutputs;
+        static bool isRecordingTargetVelocity;
+        static bool isRecordingTargetVoltage;
+
+        drawCheckBox("Is Recording Time", isRecordingTime);
+        drawCheckBox("Is Recording Pose", isRecordingPose);
+        drawCheckBox("Is Recording Velocity", isRecordingVelocity);
+        drawCheckBox("Is Recording Applied Outputs", isRecordingAppliedOutputs);
+        drawCheckBox("Is Recording Target Velocity", isRecordingTargetVelocity);
+        drawCheckBox("Is Recording Target Voltage", isRecordingTargetVoltage);
+
+        if (recording)
+        {
+            json frameData = json::object();
+
+            if (isRecordingTime) frameData["time"] = nt::Now();
+            if (isRecordingPose) frameData["pose"] = poseData;
+            if (isRecordingVelocity) frameData["velocity"] = velocityData;
+            if (isRecordingAppliedOutputs) frameData["applied-outputs"] = appliedDriveOutputs;
+            if (isRecordingTargetVelocity) frameData["target-velocity"] = targetVelocityData;
+            if (isRecordingTargetVoltage) frameData["voltage"] = v;
+
+            std::ofstream file("output.jsonl", std::ios::app);
+            if (file.is_open())
+            {
+                file << frameData.dump() << std::endl;
+                file.close();
+            }
+        }
+
+        ImGui::Separator();
+
+        static char fileNameBuffer[128] = "output.jsonl";
+
+        ImGui::Text("Output Filename:");
+        ImGui::SameLine();
+
+        if (ImGui::InputTextWithHint("##SearchBar", "Type to set file name", fileNameBuffer, IM_ARRAYSIZE(fileNameBuffer)))
+        {
+        }
+
+        ImGui::End();
+
+        static char searchBuffer[128] = "";
+        std::vector<nt::Topic> topics = table->GetTopics();
+        std::vector<std::string> topicKeys;
+        topicKeys.reserve(topics.size()); // Pre-allocate memory for performance
+
+        for (const auto& topic : topics)
+        {
+            std::string name = topic.GetName();
+
+            if (name.starts_with(Consts::datatablePrefix))
+            {
+                name.erase(0, Consts::datatablePrefix.length());
+            }
+
+            topicKeys.push_back(name);
+        }
+
+        ImGui::Begin("Custom Viewer");
+
+        ImGui::Text("Search:");
+        ImGui::SameLine();
+
+        if (ImGui::InputTextWithHint("##SearchBar", "Type to filter...", searchBuffer, IM_ARRAYSIZE(searchBuffer)))
+        {
+        }
+
+        ImGui::Separator();
+
+        ImGuiTextFilter filter(searchBuffer);
+
+        for (int i = 0; i < std::min((size_t) 5, topicKeys.size()); i++)
+        {
+            const auto& topicKey = topicKeys[i];
+
+            if (filter.PassFilter(topicKey.c_str()))
+            {
+                if (ImGui::Selectable(topicKey.c_str()))
+                {
+                    customSubs.push_back(table->GetTopic(topicKey).GenericSubscribe());
+                }
+            }
+        }
+
+        ImGui::Separator();
+
+        for (const auto& customSub : customSubs)
+        {
+            displayGeneric(customSub);
         }
 
         ImGui::End();

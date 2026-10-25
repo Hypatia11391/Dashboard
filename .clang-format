@@ -20,4 +20,4 @@ PointerAlignment: Left
 
 SpaceBeforeParens: ControlStatements
 SpaceAfterCStyleCast: true
-...
+AllowShortIfStatementsOnASingleLine: Always
