@@ -6,6 +6,7 @@
 #include <networktables/BooleanTopic.h>
 #include <networktables/DoubleArrayTopic.h>
 #include <networktables/DoubleTopic.h>
+#include <networktables/MultiSubscriber.h>
 #include <networktables/NetworkTable.h>
 #include <networktables/NetworkTableInstance.h>
 #include <networktables/StringArrayTopic.h>
@@ -112,6 +113,7 @@ class Dashboard
     private:
         nt::NetworkTableInstance inst;
         std::shared_ptr<nt::NetworkTable> table;
+        nt::MultiSubscriber tableSub;
 
         nt::DoubleArraySubscriber appliedOutputSub;
 

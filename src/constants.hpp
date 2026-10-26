@@ -1,6 +1,6 @@
 #pragma once
 
-#include <string>
+#include <string_view>
 
 namespace Consts
 {
@@ -13,5 +13,6 @@ inline constexpr float fieldScaleFactor = 30;
 inline constexpr float robotW = 1;
 inline constexpr float robotH = 0.85;
 
-inline constexpr std::string datatablePrefix = "/datatable/";
+inline constexpr std::string_view datatablePrefix = "/datatable/";
+inline constexpr std::string_view fieldPrefix     = "/datatable/field/";
 } // namespace Consts

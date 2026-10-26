@@ -55,6 +55,8 @@ void Dashboard::init()
     nt::PubSubOptions options = nt::PubSubOptions{};
     options.periodic          = 0.02;
 
+    tableSub = {inst, std::vector<std::string_view>{"/datatable/"}};
+
     appliedOutputSub = table->GetDoubleArrayTopic("drive-applied-output").Subscribe({}, options);
 
     fieldTable        = table->GetSubTable("field");
@@ -139,6 +141,7 @@ void Dashboard::mainLoop()
     json outputArray = json::array();
 
     std::vector<nt::GenericSubscriber> customSubs{};
+    std::vector<nt::DoubleArraySubscriber> customFieldSubs{};
 
     while (!glfwWindowShouldClose(window))
     {
@@ -278,6 +281,21 @@ void Dashboard::mainLoop()
                         -(float) pose.Rotation().Degrees(),
                         IM_COL32(100, 125, 200, 255));
 
+        for (const auto& customFieldSub : customFieldSubs)
+        {
+            std::vector<double> data = customFieldSub.Get();
+
+            if (data.size() == 3)
+            {
+                drawRotatedRect(drawList,
+                                {topLeft.x + (float) data[0] * Consts::fieldScaleFactor,
+                                 topLeft.y + Consts::fieldH * Consts::fieldScaleFactor - (float) data[1] * Consts::fieldScaleFactor + Consts::robotH * Consts::fieldScaleFactor / 2},
+                                {Consts::robotH * Consts::fieldScaleFactor, Consts::robotW * Consts::fieldScaleFactor},
+                                -(float) pose.Rotation().Degrees(),
+                                IM_COL32(255, 125, 200, 255));
+            }
+        }
+
         std::vector<ImVec2> trajPointsToDraw;
         trajPointsToDraw.resize(trajPoints.size());
 
@@ -328,6 +346,59 @@ void Dashboard::mainLoop()
         if (ImGui::Button("Clear History"))
         {
             plotData.clear();
+        }
+
+        ImGui::Separator();
+
+        static char fieldSearchBuffer[128] = "";
+        std::vector<nt::Topic> fieldTopics = fieldTable->GetTopics();
+        std::vector<std::string> fieldTopicKeys;
+        fieldTopicKeys.reserve(fieldTopics.size());
+
+        for (const auto& topic : fieldTopics)
+        {
+            std::string name = topic.GetName();
+
+            if (name.starts_with(Consts::fieldPrefix))
+            {
+                name.erase(0, Consts::fieldPrefix.length());
+            }
+
+            fieldTopicKeys.push_back(name);
+        }
+
+        ImGui::Text("Search For Field Objects:");
+
+        if (ImGui::InputTextWithHint("##SearchBar",
+                                     "Type to filter...",
+                                     fieldSearchBuffer,
+                                     IM_ARRAYSIZE(fieldSearchBuffer)))
+        {
+        }
+
+        ImGui::Separator();
+
+        ImGuiTextFilter fieldFilter(fieldSearchBuffer);
+
+        int foundFieldObjects = 0;
+
+        for (int i = 0; i < fieldTopicKeys.size(); i++)
+        {
+            const auto& topicKey = fieldTopicKeys[i];
+
+            if (fieldFilter.PassFilter(topicKey.c_str()))
+            {
+                if (++foundFieldObjects > 5)
+                {
+                    break;
+                }
+
+                if (ImGui::Selectable(topicKey.c_str()))
+                {
+                    nt::DoubleArrayTopic topic = fieldTable->GetDoubleArrayTopic(topicKey);
+                    customFieldSubs.push_back(topic.Subscribe({}));
+                }
+            }
         }
 
         ImGui::Separator();
@@ -537,7 +608,6 @@ void Dashboard::mainLoop()
         static char fileNameBuffer[128] = "output.jsonl";
 
         ImGui::Text("Output Filename:");
-        ImGui::SameLine();
 
         if (ImGui::InputTextWithHint("##SearchBar", "Type to set file name", fileNameBuffer, IM_ARRAYSIZE(fileNameBuffer)))
         {
@@ -548,7 +618,7 @@ void Dashboard::mainLoop()
         static char searchBuffer[128] = "";
         std::vector<nt::Topic> topics = table->GetTopics();
         std::vector<std::string> topicKeys;
-        topicKeys.reserve(topics.size()); // Pre-allocate memory for performance
+        topicKeys.reserve(topics.size());
 
         for (const auto& topic : topics)
         {
@@ -565,7 +635,6 @@ void Dashboard::mainLoop()
         ImGui::Begin("Custom Viewer");
 
         ImGui::Text("Search:");
-        ImGui::SameLine();
 
         if (ImGui::InputTextWithHint("##SearchBar", "Type to filter...", searchBuffer, IM_ARRAYSIZE(searchBuffer)))
         {
@@ -575,12 +644,19 @@ void Dashboard::mainLoop()
 
         ImGuiTextFilter filter(searchBuffer);
 
-        for (int i = 0; i < std::min((size_t) 5, topicKeys.size()); i++)
+        int found = 0;
+
+        for (int i = 0; i < topicKeys.size(); i++)
         {
             const auto& topicKey = topicKeys[i];
 
             if (filter.PassFilter(topicKey.c_str()))
             {
+                if (++found > 5)
+                {
+                    break;
+                }
+
                 if (ImGui::Selectable(topicKey.c_str()))
                 {
                     customSubs.push_back(table->GetTopic(topicKey).GenericSubscribe());
