@@ -52,8 +52,8 @@ void Dashboard::init()
     inst.SetServer("127.0.0.1");
     table = inst.GetTable("datatable");
 
-    nt::PubSubOptions options = nt::PubSubOptions{};
-    options.periodic          = 0.02;
+    options          = nt::PubSubOptions{};
+    options.periodic = 0.02;
 
     tableSub = {inst, std::vector<std::string_view>{"/datatable/"}};
 
@@ -142,6 +142,8 @@ void Dashboard::mainLoop()
 
     std::vector<nt::GenericSubscriber> customSubs{};
     std::vector<nt::DoubleArraySubscriber> customFieldSubs{};
+
+    std::vector<CustomPlotData> customPlots{};
 
     while (!glfwWindowShouldClose(window))
     {
@@ -396,7 +398,7 @@ void Dashboard::mainLoop()
                 if (ImGui::Selectable(topicKey.c_str()))
                 {
                     nt::DoubleArrayTopic topic = fieldTable->GetDoubleArrayTopic(topicKey);
-                    customFieldSubs.push_back(topic.Subscribe({}));
+                    customFieldSubs.push_back(topic.Subscribe({}, options));
                 }
             }
         }
@@ -556,9 +558,103 @@ void Dashboard::mainLoop()
             ImPlot::EndPlot();
         }
 
-        if (ImGui::Button("Clear Graph"))
+        ImGui::Separator();
+
+        int customPlotIdx = 0;
+
+        for (auto& customPlot : customPlots)
+        {
+            ImGui::PushID(customPlotIdx);
+
+            if (ImPlot::BeginPlot(customPlot.sub.GetTopic().GetName().c_str()))
+            {
+                ImPlot::SetupAxis(ImAxis_X1, "Time", ImPlotAxisFlags_AutoFit);
+                ImPlot::SetupAxis(ImAxis_Y1, customPlot.sub.GetTopic().GetName().c_str(), ImPlotAxisFlags_AutoFit);
+
+                ImPlot::PlotLine(customPlot.sub.GetTopic().GetName().c_str(), customPlot.times.data(), customPlot.data.data(), customPlot.data.size());
+
+                ImPlot::EndPlot();
+            }
+
+            ImGui::PopID();
+
+            customPlotIdx++;
+        }
+
+        if (ImGui::Button("Clear Graphs"))
         {
             autoPlotData.clear();
+            for (auto& customPlot : customPlots)
+            {
+                customPlot.clear();
+            }
+        }
+
+        static bool appendingCustomPlots;
+        drawCheckBox("Appending Custom Plots", appendingCustomPlots);
+
+        if (appendingCustomPlots)
+        {
+            for (auto& customPlot : customPlots)
+            {
+                customPlot.update((msTime - startTime).count());
+            }
+        }
+
+        ImGui::Separator();
+
+        static char plotSearchBuffer[128] = "";
+        std::vector<nt::Topic> plotTopics = table->GetTopics();
+        std::vector<std::string> plotTopicKeys;
+        plotTopicKeys.reserve(plotTopics.size());
+
+        for (const auto& topic : plotTopics)
+        {
+            std::string name = topic.GetName();
+
+            if (name.starts_with(Consts::datatablePrefix))
+            {
+                name.erase(0, Consts::datatablePrefix.length());
+            }
+
+            plotTopicKeys.push_back(name);
+        }
+
+        ImGui::Text("Search For Plot Objects:");
+
+        if (ImGui::InputTextWithHint("##SearchBar",
+                                     "Type to filter...",
+                                     plotSearchBuffer,
+                                     IM_ARRAYSIZE(plotSearchBuffer)))
+        {
+        }
+
+        ImGui::Separator();
+
+        ImGuiTextFilter plotFilter(plotSearchBuffer);
+
+        int foundPlotObjects = 0;
+
+        for (int i = 0; i < plotTopicKeys.size(); i++)
+        {
+            const auto& topicKey = plotTopicKeys[i];
+
+            if (plotFilter.PassFilter(topicKey.c_str()))
+            {
+                if (++foundPlotObjects > 5)
+                {
+                    break;
+                }
+
+                if (ImGui::Selectable(topicKey.c_str()))
+                {
+                    nt::DoubleTopic topic = table->GetDoubleTopic(topicKey);
+
+                    customPlots.push_back({{},
+                                           {},
+                                           topic.Subscribe({}, options)});
+                }
+            }
         }
 
         ImGui::End();
@@ -659,7 +755,7 @@ void Dashboard::mainLoop()
 
                 if (ImGui::Selectable(topicKey.c_str()))
                 {
-                    customSubs.push_back(table->GetTopic(topicKey).GenericSubscribe());
+                    customSubs.push_back(table->GetTopic(topicKey).GenericSubscribe({}, options));
                 }
             }
         }

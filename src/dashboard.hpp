@@ -46,6 +46,28 @@ struct PlotData
             times.clear();
         }
 };
+
+struct CustomPlotData
+{
+    public:
+        std::vector<double> data{};
+        std::vector<double> times{};
+        nt::DoubleSubscriber sub;
+
+    public:
+        void update(double time)
+        {
+            times.push_back(time);
+            data.push_back(sub.Get());
+        }
+
+        void clear()
+        {
+            data.clear();
+            times.clear();
+        }
+};
+
 struct AutoPlotData
 {
     public:
@@ -114,6 +136,8 @@ class Dashboard
         nt::NetworkTableInstance inst;
         std::shared_ptr<nt::NetworkTable> table;
         nt::MultiSubscriber tableSub;
+
+        nt::PubSubOptions options;
 
         nt::DoubleArraySubscriber appliedOutputSub;
 
