@@ -1,5 +1,8 @@
 #pragma once
 
+#include "src/networking-server.hpp"
+#include "src/recording-manager.hpp"
+
 #include <GLFW/glfw3.h>
 
 #include <frc/geometry/Pose2d.h>
@@ -13,6 +16,7 @@
 #include <networktables/StringTopic.h>
 
 #include <chrono>
+#include <memory>
 
 struct PlotData
 {
@@ -52,13 +56,18 @@ struct CustomPlotData
     public:
         std::vector<double> data{};
         std::vector<double> times{};
-        nt::DoubleSubscriber sub;
+        int subId;
 
     public:
-        void update(double time)
+        void update(std::shared_ptr<NetworkingServer> networkingServer, double time)
         {
-            times.push_back(time);
-            data.push_back(sub.Get());
+            nt::Value gotData = networkingServer->getCustomSub(subId);
+
+            if (gotData && gotData.IsDouble())
+            {
+                times.push_back(time);
+                data.push_back(gotData.GetDouble());
+            }
         }
 
         void clear()
@@ -110,10 +119,16 @@ struct AutoPlotData
         }
 };
 
+struct DashboardCreateInfo
+{
+    public:
+        bool isSimulation = false;
+};
+
 class Dashboard
 {
     public:
-        Dashboard();
+        Dashboard(const DashboardCreateInfo& createInfo);
         void run();
 
     private:
@@ -133,43 +148,10 @@ class Dashboard
         std::chrono::milliseconds startTime;
 
     private:
-        nt::NetworkTableInstance inst;
-        std::shared_ptr<nt::NetworkTable> table;
-        nt::MultiSubscriber tableSub;
+        DashboardCreateInfo createInfo;
 
-        nt::PubSubOptions options;
-
-        nt::DoubleArraySubscriber appliedOutputSub;
-
-        std::shared_ptr<nt::NetworkTable> fieldTable;
-        nt::DoubleArraySubscriber robotPoseSub;
-        nt::DoubleArraySubscriber trajPoseSub;
-        nt::DoubleArraySubscriber robotVelocitySub;
-        nt::DoubleArraySubscriber targetVelocitySub;
-
-        nt::DoubleSubscriber intakeLiftPosSub;
-        nt::DoubleSubscriber intakeLiftTargetPosSub;
-        nt::DoubleSubscriber intakeFeedPowerSub;
-
-        nt::DoubleSubscriber feedPowerSub;
-
-        nt::DoubleSubscriber kickerPowerSub;
-
-        nt::DoubleSubscriber shooterLeftRPMSub;
-        nt::DoubleSubscriber shooterLeftTargetRPMSub;
-        nt::DoubleSubscriber shooterRightRPMSub;
-        nt::DoubleSubscriber shooterRightTargetRPMSub;
-
-        nt::DoubleSubscriber vSub;
-
-        nt::StringArraySubscriber autoListSub;
-        nt::StringPublisher autoPub;
-
-        nt::DoublePublisher kpPub;
-        nt::DoublePublisher kiPub;
-        nt::DoublePublisher kdPub;
-
-        nt::BooleanSubscriber isAutoSub;
+        std::shared_ptr<NetworkingServer> networkingServer;
+        std::shared_ptr<RecordingManager> recordingManager;
 
         PlotData plotData;
         AutoPlotData autoPlotData;

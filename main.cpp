@@ -5,9 +5,32 @@
 
 #include "src/dashboard.hpp"
 
-int main()
+int main(int argc, char* argv[])
 {
-    Dashboard app;
+    bool isSimulation = false;
+
+    for (int i = 1; i < argc; ++i)
+    {
+        if (std::string(argv[i]) == "--sim")
+        {
+            isSimulation = true;
+            break;
+        }
+    }
+
+    if (isSimulation)
+    {
+        std::cout << "Starting in Simulation Mode" << std::endl;
+    }
+    else
+    {
+        std::cout << "Starting in Driver Station Mode" << std::endl;
+    }
+
+    DashboardCreateInfo dashboardCreateInfo{};
+    dashboardCreateInfo.isSimulation = isSimulation;
+
+    Dashboard app = {dashboardCreateInfo};
 
     try
     {

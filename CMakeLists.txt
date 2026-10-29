@@ -28,11 +28,13 @@ add_executable(Dashboard
     main.cpp 
     src/dashboard.cpp
     src/primitives.cpp
+    src/networking-server.cpp
+    src/recording-manager.cpp
     ${IMPLOT_DIR}/implot.cpp
     ${IMPLOT_DIR}/implot_items.cpp
 )
 
-target_include_directories(Dashboard PRIVATE ${WPILIB_INC_DIR} ${CMAKE_SOURCE_DIR})
+target_include_directories(Dashboard PRIVATE ${WPILIB_INC_DIR} ${CMAKE_SOURCE_DIR} ${CMAKE_SOURCE_DIR}/vendor)
 target_link_directories(Dashboard PRIVATE ${WPILIB_LIB_DIR})
 
 set_target_properties(Dashboard PROPERTIES

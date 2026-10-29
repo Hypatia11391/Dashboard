@@ -171,17 +171,8 @@ std::string span_to_string(std::span<const std::string> s)
     return result;
 }
 
-void displayGeneric(const nt::GenericSubscriber& sub)
+void displayGeneric(const std::string& name, const nt::Value& value)
 {
-    nt::Value value = sub.Get();
-
-    std::string name = sub.GetTopic().GetName();
-
-    if (name.starts_with(Consts::datatablePrefix))
-    {
-        name.erase(0, Consts::datatablePrefix.length());
-    }
-
     if (value.IsBoolean())
     {
         ImGui::TextUnformatted(std::format("{}: {}", name, value.GetBoolean()).c_str());
@@ -205,5 +196,41 @@ void displayGeneric(const nt::GenericSubscriber& sub)
     else if (value.IsStringArray())
     {
         ImGui::TextUnformatted(std::format("{}: {}", name, span_to_string(value.GetStringArray())).c_str());
+    }
+}
+
+void drawSearch(std::vector<std::string> options, std::string label, char* searchBuf, size_t bufLen, std::function<void(std::string)> fn)
+{
+    ImGui::Text("%s", label.c_str());
+
+    if (ImGui::InputTextWithHint("##xx",
+                                 "Type to filter...",
+                                 searchBuf,
+                                 bufLen))
+    {
+    }
+
+    ImGui::Separator();
+
+    ImGuiTextFilter filter(searchBuf);
+
+    int found = 0;
+
+    for (int i = 0; i < options.size(); i++)
+    {
+        const auto& option = options[i];
+
+        if (filter.PassFilter(option.c_str()))
+        {
+            if (++found > 5)
+            {
+                break;
+            }
+
+            if (ImGui::Selectable(option.c_str()))
+            {
+                fn(option);
+            }
+        }
     }
 }
