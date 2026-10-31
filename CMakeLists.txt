@@ -47,4 +47,5 @@ target_link_libraries(Dashboard PRIVATE
     ntcore
     wpinet
     wpiutil
+    wpimath
 )

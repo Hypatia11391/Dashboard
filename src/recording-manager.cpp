@@ -5,14 +5,11 @@
 #include <string>
 
 #include <networktables/NetworkTableValue.h>
-
-#include <vendor/json.hpp>
-
-using json = nlohmann::json;
+#include <wpi/json.h>
 
 RecordingManager::RecordingManager(std::string filePath) : filePath(filePath) {}
 
-json nt_to_json(const nt::Value& value)
+wpi::json nt_to_json(const nt::Value& value)
 {
     if (!value || value.type() == NT_UNASSIGNED)
     {
@@ -63,11 +60,27 @@ json nt_to_json(const nt::Value& value)
     }
 }
 
-void RecordingManager::appendToFile(Values values, std::vector<nt::Value> customValues, std::vector<std::string> customValuesKeys)
+void RecordingManager::update(Values values, std::vector<nt::Value> customValues, std::vector<std::string> customValuesKeys)
 {
-    json frameData = values;
-
-    frameData["time"] = nt::Now();
+    wpi::json frameData = {
+        {"appliedOutput", values.appliedOutput},
+        {"robotPose", values.robotPose},
+        {"robotTraj", values.robotTraj},
+        {"robotVelocity", values.robotVelocity},
+        {"robotTargetVelocity", values.robotTargetVelocity},
+        {"intakeLiftPos", values.intakeLiftPos},
+        {"intakeLiftTargetPos", values.intakeLiftTargetPos},
+        {"intakeFeedPower", values.intakeFeedPower},
+        {"feedPower", values.feedPower},
+        {"kickerPower", values.kickerPower},
+        {"shooterLeftRPM", values.shooterLeftRPM},
+        {"shooterLeftTargetRPM", values.shooterLeftTargetRPM},
+        {"shooterRightRPM", values.shooterRightRPM},
+        {"shooterRightTargetRPM", values.shooterRightTargetRPM},
+        {"v", values.v},
+        {"autoList", values.autoList},
+        {"isAuto", values.isAuto},
+        {"time", values.msTime.count()}};
 
     assert(customValues.size() == customValuesKeys.size());
 
@@ -75,8 +88,6 @@ void RecordingManager::appendToFile(Values values, std::vector<nt::Value> custom
     {
         frameData[customValuesKeys[i]] = nt_to_json(customValues[i]);
     }
-
-    bool isAuto;
 
     std::ofstream file(filePath, std::ios::app);
     if (file.is_open())

@@ -12,6 +12,7 @@
 #include <networktables/NetworkTableInstance.h>
 #include <networktables/StringArrayTopic.h>
 #include <networktables/StringTopic.h>
+#include <wpi/json.h>
 
 #include <memory>
 #include <shared_mutex>
@@ -25,10 +26,10 @@ struct Values
     public:
         std::vector<double> appliedOutput;
 
-        std::vector<double> robotPose;
-        std::vector<double> trajPose;
-        std::vector<double> robotVelocity;
-        std::vector<double> targetVelocity;
+        frc::Pose2d robotPose;
+        std::vector<frc::Pose2d> robotTraj;
+        frc::Pose2d robotVelocity;
+        frc::Pose2d robotTargetVelocity;
 
         double intakeLiftPos;
         double intakeLiftTargetPos;
@@ -48,26 +49,9 @@ struct Values
         std::vector<std::string> autoList;
 
         bool isAuto;
-};
 
-NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Values,
-                                   appliedOutput,
-                                   robotPose,
-                                   trajPose,
-                                   robotVelocity,
-                                   targetVelocity,
-                                   intakeLiftPos,
-                                   intakeLiftTargetPos,
-                                   intakeFeedPower,
-                                   feedPower,
-                                   kickerPower,
-                                   shooterLeftRPM,
-                                   shooterLeftTargetRPM,
-                                   shooterRightRPM,
-                                   shooterRightTargetRPM,
-                                   v,
-                                   autoList,
-                                   isAuto)
+        std::chrono::milliseconds msTime;
+};
 
 struct SetValues
 {
@@ -98,6 +82,11 @@ class NetworkingServer
         int addFieldCustomSub(std::string key);
         nt::Value getCustomSub(int id) const;
 
+        frc::Pose2d getRobotPose() const;
+        frc::Pose2d getRobotVelocity() const;
+        std::vector<frc::Pose2d> getRobotTraj() const;
+        frc::Pose2d getRobotTargetVelocity() const;
+
         const std::shared_ptr<nt::NetworkTable> getTable() const { return table; }
         const std::shared_ptr<nt::NetworkTable> getFieldTable() const { return fieldTable; }
         const bool isConnected() const { return inst.IsConnected(); }
@@ -114,9 +103,9 @@ class NetworkingServer
 
         std::shared_ptr<nt::NetworkTable> fieldTable;
         nt::DoubleArraySubscriber robotPoseSub;
-        nt::DoubleArraySubscriber trajPoseSub;
+        nt::DoubleArraySubscriber robotTrajSub;
         nt::DoubleArraySubscriber robotVelocitySub;
-        nt::DoubleArraySubscriber targetVelocitySub;
+        nt::DoubleArraySubscriber robotTargetVelocitySub;
 
         nt::DoubleSubscriber intakeLiftPosSub;
         nt::DoubleSubscriber intakeLiftTargetPosSub;

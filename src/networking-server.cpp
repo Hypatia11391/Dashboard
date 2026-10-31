@@ -1,4 +1,5 @@
 #include "src/networking-server.hpp"
+#include "networktables/NetworkTableValue.h"
 #include "src/constants.hpp"
 
 #include <frc/geometry/Pose2d.h>
@@ -37,11 +38,11 @@ NetworkingServer::NetworkingServer(const NetworkingServerCreateInfo& createInfo)
 
     appliedOutputSub = table->GetDoubleArrayTopic("drive-applied-output").Subscribe({}, createInfo.options);
 
-    fieldTable        = table->GetSubTable("field");
-    robotPoseSub      = fieldTable->GetDoubleArrayTopic("robot").Subscribe({}, createInfo.options);
-    robotVelocitySub  = fieldTable->GetDoubleArrayTopic("velocity").Subscribe({}, createInfo.options);
-    targetVelocitySub = fieldTable->GetDoubleArrayTopic("target-velocity").Subscribe({}, createInfo.options);
-    trajPoseSub       = fieldTable->GetDoubleArrayTopic("trajectory").Subscribe({}, createInfo.options);
+    fieldTable             = table->GetSubTable("field");
+    robotPoseSub           = fieldTable->GetDoubleArrayTopic("robot").Subscribe({}, createInfo.options);
+    robotVelocitySub       = fieldTable->GetDoubleArrayTopic("velocity").Subscribe({}, createInfo.options);
+    robotTargetVelocitySub = fieldTable->GetDoubleArrayTopic("target-velocity").Subscribe({}, createInfo.options);
+    robotTrajSub           = fieldTable->GetDoubleArrayTopic("trajectory").Subscribe({}, createInfo.options);
 
     intakeLiftPosSub       = table->GetDoubleTopic("intake-lift-pos").Subscribe({}, createInfo.options);
     intakeLiftTargetPosSub = table->GetDoubleTopic("intake-lift-target-pos").Subscribe({}, createInfo.options);
@@ -73,10 +74,10 @@ Values NetworkingServer::getValues() const
 
     values.appliedOutput = appliedOutputSub.Get();
 
-    values.robotPose      = robotPoseSub.Get();
-    values.trajPose       = trajPoseSub.Get();
-    values.robotVelocity  = robotVelocitySub.Get();
-    values.targetVelocity = targetVelocitySub.Get();
+    values.robotPose           = getRobotPose();
+    values.robotTraj           = getRobotTraj();
+    values.robotVelocity       = getRobotVelocity();
+    values.robotTargetVelocity = getRobotTargetVelocity();
 
     values.intakeLiftPos       = intakeLiftPosSub.Get();
     values.intakeLiftTargetPos = intakeLiftTargetPosSub.Get();
@@ -95,6 +96,10 @@ Values NetworkingServer::getValues() const
 
     values.autoList = std::move(autoListSub.Get());
     values.isAuto   = isAutoSub.Get();
+
+    std::chrono::duration<double, std::milli> double_ms(nt::Now());
+
+    values.msTime = std::chrono::duration_cast<std::chrono::milliseconds>(double_ms);
 
     return values;
 }
@@ -138,4 +143,77 @@ const std::string NetworkingServer::getCustomSubName(int id) const
         return customSubs[id].GetTopic().GetName();
     }
     return {};
+}
+
+frc::Pose2d NetworkingServer::getRobotPose() const
+{
+    std::vector<double> data = robotPoseSub.Get();
+
+    if (data.size() == 3)
+    {
+        return {units::meter_t(data[0]),
+                units::meter_t(data[1]),
+                {units::degree_t(data[2])}};
+    }
+    else
+    {
+        return {};
+    }
+}
+
+frc::Pose2d NetworkingServer::getRobotVelocity() const
+{
+    std::vector<double> data = robotVelocitySub.Get();
+
+    if (data.size() == 3)
+    {
+        return {units::meter_t(data[0]),
+                units::meter_t(data[1]),
+                {units::degree_t(data[2])}};
+    }
+    else
+    {
+        return {};
+    }
+}
+
+std::vector<frc::Pose2d> NetworkingServer::getRobotTraj() const
+{
+    std::vector<double> data = robotTrajSub.Get();
+
+    if (data.size() % 3 == 0)
+    {
+        std::vector<frc::Pose2d> traj;
+        traj.reserve(data.size() / 3);
+
+        for (int i = 0; i < data.size() / 3; i++)
+        {
+            traj.push_back({units::meter_t(data[i * 3 + 0]),
+                            units::meter_t(data[i * 3 + 1]),
+                            {units::degree_t(data[i * 3 + 2])}});
+        }
+
+        return traj;
+    }
+
+    else
+    {
+        return {};
+    }
+}
+
+frc::Pose2d NetworkingServer::getRobotTargetVelocity() const
+{
+    std::vector<double> data = robotTargetVelocitySub.Get();
+
+    if (data.size() == 3)
+    {
+        return {units::meter_t(data[0]),
+                units::meter_t(data[1]),
+                {units::degree_t(data[2])}};
+    }
+    else
+    {
+        return {};
+    }
 }

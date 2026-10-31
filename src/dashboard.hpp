@@ -136,6 +136,17 @@ class Dashboard
         void mainLoop();
         void cleanUp();
 
+        void render(const Values& values);
+        void drawWindows(const Values& values);
+
+        void drawTelemetryWindow(const Values& values);
+        void drawAutosWindow(const Values& values);
+        void drawMiscWindow(const Values& values);
+        void drawMechanismsWindow(const Values& values);
+        void drawPlotsWindow(const Values& values);
+        void drawRecordingWindow(const Values& values);
+        void drawCustomViewerWindow(const Values& values);
+
         GLuint LoadTextureFromFile(const char* filename, int* out_width, int* out_height);
 
     private:
@@ -148,6 +159,15 @@ class Dashboard
         std::chrono::milliseconds startTime;
 
     private:
+        double kp{}, ki{}, kd{};
+        std::string selectedAuto{};
+
+        std::vector<int> customSubs{};
+        std::vector<int> customFieldSubs{};
+        std::vector<int> customRecordingSubs{};
+
+        std::vector<CustomPlotData> customPlots{};
+
         DashboardCreateInfo createInfo;
 
         std::shared_ptr<NetworkingServer> networkingServer;
@@ -155,4 +175,14 @@ class Dashboard
 
         PlotData plotData;
         AutoPlotData autoPlotData;
+
+        bool showHistory                = false;
+        bool appendHistory              = true;
+        char fieldSearchBuffer[128]     = "";
+        bool appendingCustomPlots       = false;
+        char plotSearchBuffer[128]      = "";
+        bool recording                  = false;
+        char fileNameBuffer[128]        = "output.jsonl";
+        char recordingSearchBuffer[128] = "";
+        char searchBuffer[128]          = "";
 };
