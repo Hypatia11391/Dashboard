@@ -18,40 +18,24 @@
 #include <chrono>
 #include <memory>
 
-struct PlotData
+struct PoseHistory
 {
     public:
-        std::vector<double> dx{};
-        std::vector<double> dy{};
-        std::vector<double> omega{};
         std::vector<frc::Pose2d> pose{};
-        std::vector<double> times{};
 
     public:
-        void append(frc::Pose2d velocity, frc::Pose2d currentPose, std::chrono::milliseconds time)
+        void append(frc::Pose2d currentPose)
         {
-            dx.push_back(velocity.X().value());
-            dy.push_back(velocity.Y().value());
-            omega.push_back(velocity.Rotation().Degrees().value());
-
-            double doubleTime = std::chrono::duration<double, std::milli>(time).count();
-
             pose.push_back(currentPose);
-
-            times.push_back(doubleTime);
         }
 
         void clear()
         {
-            dx.clear();
-            dy.clear();
-            omega.clear();
             pose.clear();
-            times.clear();
         }
 };
 
-struct CustomPlotData
+struct CustomPlotInfo
 {
     public:
         std::vector<double> data{};
@@ -77,7 +61,7 @@ struct CustomPlotData
         }
 };
 
-struct AutoPlotData
+struct RobotData
 {
     public:
         std::vector<double> dx{};
@@ -86,11 +70,13 @@ struct AutoPlotData
         std::vector<double> dxTarget{};
         std::vector<double> dyTarget{};
         std::vector<double> omegaTarget{};
-        std::vector<frc::Pose2d> pose{};
+        std::vector<double> x{};
+        std::vector<double> y{};
+        std::vector<double> heading{};
         std::vector<double> times{};
 
     public:
-        void append(frc::Pose2d velocity, frc::Pose2d targetVelocity, frc::Pose2d currentPose, std::chrono::milliseconds time)
+        void append(frc::Pose2d pose, frc::Pose2d velocity, frc::Pose2d targetVelocity, std::chrono::milliseconds time)
         {
             dx.push_back(velocity.X().value());
             dy.push_back(velocity.Y().value());
@@ -102,7 +88,9 @@ struct AutoPlotData
 
             double doubleTime = std::chrono::duration<double, std::milli>(time).count();
 
-            pose.push_back(currentPose);
+            x.push_back(pose.X().value());
+            y.push_back(pose.Y().value());
+            heading.push_back(pose.Rotation().Degrees().value());
 
             times.push_back(doubleTime);
         }
@@ -166,15 +154,14 @@ class Dashboard
         std::vector<int> customFieldSubs{};
         std::vector<int> customRecordingSubs{};
 
-        std::vector<CustomPlotData> customPlots{};
-
         DashboardCreateInfo createInfo;
 
         std::shared_ptr<NetworkingServer> networkingServer;
         std::shared_ptr<RecordingManager> recordingManager;
 
-        PlotData plotData;
-        AutoPlotData autoPlotData;
+        PoseHistory poseHistory;
+        RobotData autoData;
+        std::vector<CustomPlotInfo> customPlotInfo{};
 
         bool showHistory                = false;
         bool appendHistory              = true;

@@ -90,7 +90,7 @@ void Dashboard::init()
     int my_image_height = 0;
     fieldImg            = LoadTextureFromFile("field26.png", &my_image_width, &my_image_height);
 
-    autoPlotData = {};
+    autoData = {};
 
     auto currentTime = std::chrono::high_resolution_clock::now().time_since_epoch();
 
@@ -115,7 +115,7 @@ void Dashboard::mainLoop()
 
         if (values.isAuto)
         {
-            autoPlotData.append(values.robotVelocity, values.robotTargetVelocity, values.robotPose, values.msTime - startTime);
+            autoData.append(values.robotPose, values.robotVelocity, values.robotTargetVelocity, values.msTime - startTime);
         }
 
         render(values);
@@ -228,12 +228,12 @@ void Dashboard::drawTelemetryWindow(const Values& values)
     {
 
         std::vector<ImVec2> historyPoints;
-        historyPoints.resize(plotData.pose.size());
+        historyPoints.resize(poseHistory.pose.size());
 
-        for (int i = 0; i < plotData.pose.size(); i++)
+        for (int i = 0; i < poseHistory.pose.size(); i++)
         {
-            historyPoints[i] = {topLeft.x + (float) plotData.pose[i].X() * Consts::fieldScaleFactor,
-                                topLeft.y + Consts::fieldH * Consts::fieldScaleFactor - (float) plotData.pose[i].Y() * Consts::fieldScaleFactor};
+            historyPoints[i] = {topLeft.x + (float) poseHistory.pose[i].X() * Consts::fieldScaleFactor,
+                                topLeft.y + Consts::fieldH * Consts::fieldScaleFactor - (float) poseHistory.pose[i].Y() * Consts::fieldScaleFactor};
         }
 
         int numPoints = std::min<int>(historyPoints.size(), 10000);
@@ -248,13 +248,13 @@ void Dashboard::drawTelemetryWindow(const Values& values)
 
     if (appendHistory)
     {
-        plotData.append(values.robotVelocity, values.robotPose, values.msTime - startTime);
+        poseHistory.append(values.robotPose);
     }
 
     drawCheckBox("Show History", showHistory);
     if (ImGui::Button("Clear History"))
     {
-        plotData.clear();
+        poseHistory.clear();
     }
 
     ImGui::Separator();
@@ -407,9 +407,9 @@ void Dashboard::drawPlotsWindow(const Values& values)
         ImPlot::SetupAxis(ImAxis_X1, "Time", ImPlotAxisFlags_AutoFit);
         ImPlot::SetupAxis(ImAxis_Y1, "Meters/Second", ImPlotAxisFlags_AutoFit);
 
-        ImPlot::PlotLine("DX", autoPlotData.times.data(), autoPlotData.dx.data(), autoPlotData.dx.size());
+        ImPlot::PlotLine("DX", autoData.times.data(), autoData.dx.data(), autoData.dx.size());
 
-        ImPlot::PlotLine("Target DX", autoPlotData.times.data(), autoPlotData.dxTarget.data(), autoPlotData.dxTarget.size());
+        ImPlot::PlotLine("Target DX", autoData.times.data(), autoData.dxTarget.data(), autoData.dxTarget.size());
         ImPlot::EndPlot();
     }
 
@@ -418,9 +418,9 @@ void Dashboard::drawPlotsWindow(const Values& values)
         ImPlot::SetupAxis(ImAxis_X1, "Time", ImPlotAxisFlags_AutoFit);
         ImPlot::SetupAxis(ImAxis_Y1, "Meters/Second", ImPlotAxisFlags_AutoFit);
 
-        ImPlot::PlotLine("DY", autoPlotData.times.data(), autoPlotData.dy.data(), autoPlotData.dy.size());
+        ImPlot::PlotLine("DY", autoData.times.data(), autoData.dy.data(), autoData.dy.size());
 
-        ImPlot::PlotLine("Target DY", autoPlotData.times.data(), autoPlotData.dyTarget.data(), autoPlotData.dyTarget.size());
+        ImPlot::PlotLine("Target DY", autoData.times.data(), autoData.dyTarget.data(), autoData.dyTarget.size());
         ImPlot::EndPlot();
     }
 
@@ -429,9 +429,9 @@ void Dashboard::drawPlotsWindow(const Values& values)
         ImPlot::SetupAxis(ImAxis_X1, "Time", ImPlotAxisFlags_AutoFit);
         ImPlot::SetupAxis(ImAxis_Y1, "Degs/Second", ImPlotAxisFlags_AutoFit);
 
-        ImPlot::PlotLine("Angular Velocity", autoPlotData.times.data(), autoPlotData.omega.data(), autoPlotData.omegaTarget.size());
+        ImPlot::PlotLine("Angular Velocity", autoData.times.data(), autoData.omega.data(), autoData.omegaTarget.size());
 
-        ImPlot::PlotLine("Target Angular Velocity", autoPlotData.times.data(), autoPlotData.omegaTarget.data(), autoPlotData.omegaTarget.size());
+        ImPlot::PlotLine("Target Angular Velocity", autoData.times.data(), autoData.omegaTarget.data(), autoData.omegaTarget.size());
         ImPlot::EndPlot();
     }
 
@@ -439,7 +439,7 @@ void Dashboard::drawPlotsWindow(const Values& values)
 
     int customPlotIdx = 0;
 
-    for (auto& customPlot : customPlots)
+    for (auto& customPlot : customPlotInfo)
     {
         ImGui::PushID(customPlotIdx);
 
@@ -467,8 +467,8 @@ void Dashboard::drawPlotsWindow(const Values& values)
 
     if (ImGui::Button("Clear Graphs"))
     {
-        autoPlotData.clear();
-        for (auto& customPlot : customPlots)
+        autoData.clear();
+        for (auto& customPlot : customPlotInfo)
         {
             customPlot.clear();
         }
@@ -477,7 +477,7 @@ void Dashboard::drawPlotsWindow(const Values& values)
 
     if (appendingCustomPlots)
     {
-        for (auto& customPlot : customPlots)
+        for (auto& customPlot : customPlotInfo)
         {
             customPlot.update(networkingServer, (values.msTime - startTime).count());
         }
@@ -505,7 +505,7 @@ void Dashboard::drawPlotsWindow(const Values& values)
                plotSearchBuffer,
                IM_ARRAYSIZE(plotSearchBuffer),
                [this](std::string option) mutable
-               { customPlots.push_back({{}, {}, networkingServer->addCustomSub(option)}); });
+               { customPlotInfo.push_back({{}, {}, networkingServer->addCustomSub(option)}); });
 
     ImGui::End();
 }
