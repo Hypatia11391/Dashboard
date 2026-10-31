@@ -2,3 +2,4 @@ build/
 output*
 imgui.ini
 output*
+.vscode/
