@@ -159,8 +159,8 @@ class Dashboard
         std::shared_ptr<NetworkingServer> networkingServer;
         std::shared_ptr<RecordingManager> recordingManager;
 
-        PoseHistory poseHistory;
-        RobotData autoData;
+        PoseHistory poseHistory{};
+        RobotData autoData{};
         std::vector<CustomPlotInfo> customPlotInfo{};
 
         bool showHistory                = false;

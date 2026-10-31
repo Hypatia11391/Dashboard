@@ -90,9 +90,7 @@ void Dashboard::init()
     int my_image_height = 0;
     fieldImg            = LoadTextureFromFile("field26.png", &my_image_width, &my_image_height);
 
-    autoData = {};
-
-    auto currentTime = std::chrono::high_resolution_clock::now().time_since_epoch();
+    std::chrono::duration<double, std::milli> currentTime(nt::Now());
 
     startTime = std::chrono::duration_cast<std::chrono::milliseconds>(currentTime);
 }
@@ -236,7 +234,7 @@ void Dashboard::drawTelemetryWindow(const Values& values)
                                 topLeft.y + Consts::fieldH * Consts::fieldScaleFactor - (float) poseHistory.pose[i].Y() * Consts::fieldScaleFactor};
         }
 
-        int numPoints = std::min<int>(historyPoints.size(), 10000);
+        int numPoints = std::min<int>(historyPoints.size(), Consts::numHistoryPointsShown);
 
         drawList->AddPolyline(historyPoints.data() + historyPoints.size() - numPoints,
                               numPoints,
@@ -249,6 +247,11 @@ void Dashboard::drawTelemetryWindow(const Values& values)
     if (appendHistory)
     {
         poseHistory.append(values.robotPose);
+
+        if (poseHistory.pose.size() > Consts::numHistoryPointsShown * 2)
+        {
+            poseHistory.pose.erase(poseHistory.pose.begin(), poseHistory.pose.begin() + Consts::numHistoryPointsShown);
+        }
     }
 
     drawCheckBox("Show History", showHistory);
