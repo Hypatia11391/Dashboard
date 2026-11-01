@@ -5,6 +5,8 @@
 
 #include <GLFW/glfw3.h>
 
+#include <imgui/imgui.h>
+
 #include <frc/geometry/Pose2d.h>
 #include <networktables/BooleanTopic.h>
 #include <networktables/DoubleArrayTopic.h>
@@ -17,6 +19,7 @@
 
 #include <chrono>
 #include <memory>
+#include <optional>
 
 struct PoseHistory
 {
@@ -113,6 +116,12 @@ struct DashboardCreateInfo
         bool isSimulation = false;
 };
 
+struct GuiConfig
+{
+    public:
+        float guiScale = 1;
+};
+
 class Dashboard
 {
     public:
@@ -134,6 +143,11 @@ class Dashboard
         void drawPlotsWindow(const Values& values);
         void drawRecordingWindow(const Values& values);
         void drawCustomViewerWindow(const Values& values);
+
+        void drawConfigWindow();
+
+        void applyPendingGuiChange();
+        void saveConfigFile();
 
         GLuint LoadTextureFromFile(const char* filename, int* out_width, int* out_height);
 
@@ -162,6 +176,12 @@ class Dashboard
         PoseHistory poseHistory{};
         RobotData autoData{};
         std::vector<CustomPlotInfo> customPlotInfo{};
+
+        GuiConfig config{};
+        bool pendingGuiChange = false;
+
+        ImGuiStyle baseImGuiStyle;
+        float fieldScaleFactor = 30;
 
         bool showHistory                = false;
         bool appendHistory              = true;

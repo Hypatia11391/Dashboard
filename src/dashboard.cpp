@@ -20,20 +20,19 @@
 #include <networktables/NetworkTable.h>
 #include <networktables/NetworkTableInstance.h>
 #include <networktables/StringTopic.h>
+#include <wpi/json.h>
 
 #include <algorithm>
+#include <fstream>
 #include <iostream>
 #include <memory>
 #include <stdexcept>
 #include <vector>
 
-#include <vendor/json.hpp>
-
-using json = nlohmann::json;
-
 #include "src/constants.hpp"
 #include "src/dashboard.hpp"
 #include "src/primitives.hpp"
+#include "wpi/json_fwd.h"
 
 Dashboard::Dashboard(const DashboardCreateInfo& createInfo) : createInfo(createInfo)
 {
@@ -93,6 +92,8 @@ void Dashboard::init()
     std::chrono::duration<double, std::milli> currentTime(nt::Now());
 
     startTime = std::chrono::duration_cast<std::chrono::milliseconds>(currentTime);
+
+    baseImGuiStyle = ImGui::GetStyle();
 }
 
 void Dashboard::mainLoop()
@@ -115,6 +116,8 @@ void Dashboard::mainLoop()
         {
             autoData.append(values.robotPose, values.robotVelocity, values.robotTargetVelocity, values.msTime - startTime);
         }
+
+        applyPendingGuiChange();
 
         render(values);
     }
@@ -149,6 +152,7 @@ void Dashboard::drawWindows(const Values& values)
     drawPlotsWindow(values);
     drawRecordingWindow(values);
     drawCustomViewerWindow(values);
+    drawConfigWindow();
 }
 
 void Dashboard::drawTelemetryWindow(const Values& values)
@@ -172,19 +176,19 @@ void Dashboard::drawTelemetryWindow(const Values& values)
 
     ImVec2 topLeft = ImGui::GetCursorScreenPos();
 
-    ImGui::Dummy({Consts::fieldW * Consts::fieldScaleFactor, Consts::fieldH * Consts::fieldScaleFactor + Consts::robotH * Consts::fieldScaleFactor});
+    ImGui::Dummy({Consts::fieldW * fieldScaleFactor, Consts::fieldH * fieldScaleFactor + Consts::robotH * fieldScaleFactor});
 
     drawList->AddImage((void*) (intptr_t) fieldImg,
-                       {topLeft.x, topLeft.y + Consts::robotH * Consts::fieldScaleFactor / 2},
-                       {topLeft.x + Consts::fieldW * Consts::fieldScaleFactor,
-                        topLeft.y + Consts::fieldH * Consts::fieldScaleFactor + Consts::robotH * Consts::fieldScaleFactor / 2},
+                       {topLeft.x, topLeft.y + Consts::robotH * fieldScaleFactor / 2},
+                       {topLeft.x + Consts::fieldW * fieldScaleFactor,
+                        topLeft.y + Consts::fieldH * fieldScaleFactor + Consts::robotH * fieldScaleFactor / 2},
                        {(float) 90 / 3508, (float) 90 / 1814},
                        {1 - (float) 90 / 3508, 1 - (float) 90 / 1814});
 
     drawRotatedRect(drawList,
-                    {topLeft.x + (float) values.robotPose.X() * Consts::fieldScaleFactor,
-                     topLeft.y + Consts::fieldH * Consts::fieldScaleFactor - (float) values.robotPose.Y() * Consts::fieldScaleFactor + Consts::robotH * Consts::fieldScaleFactor / 2},
-                    {Consts::robotH * Consts::fieldScaleFactor, Consts::robotW * Consts::fieldScaleFactor},
+                    {topLeft.x + (float) values.robotPose.X() * fieldScaleFactor,
+                     topLeft.y + Consts::fieldH * fieldScaleFactor - (float) values.robotPose.Y() * fieldScaleFactor + Consts::robotH * fieldScaleFactor / 2},
+                    {Consts::robotH * fieldScaleFactor, Consts::robotW * fieldScaleFactor},
                     -(float) values.robotPose.Rotation().Degrees(),
                     IM_COL32(100, 125, 200, 255));
 
@@ -197,9 +201,9 @@ void Dashboard::drawTelemetryWindow(const Values& values)
             if (data.GetDoubleArray().size() == 3)
             {
                 drawRotatedRect(drawList,
-                                {topLeft.x + (float) data.GetDoubleArray()[0] * Consts::fieldScaleFactor,
-                                 topLeft.y + Consts::fieldH * Consts::fieldScaleFactor - (float) data.GetDoubleArray()[1] * Consts::fieldScaleFactor + Consts::robotH * Consts::fieldScaleFactor / 2},
-                                {Consts::robotH * Consts::fieldScaleFactor, Consts::robotW * Consts::fieldScaleFactor},
+                                {topLeft.x + (float) data.GetDoubleArray()[0] * fieldScaleFactor,
+                                 topLeft.y + Consts::fieldH * fieldScaleFactor - (float) data.GetDoubleArray()[1] * fieldScaleFactor + Consts::robotH * fieldScaleFactor / 2},
+                                {Consts::robotH * fieldScaleFactor, Consts::robotW * fieldScaleFactor},
                                 -(float) data.GetDoubleArray()[2],
                                 IM_COL32(255, 125, 200, 255));
             }
@@ -211,8 +215,8 @@ void Dashboard::drawTelemetryWindow(const Values& values)
 
     for (int i = 0; i < values.robotTraj.size(); i++)
     {
-        trajPointsToDraw[i] = {topLeft.x + (float) values.robotTraj[i].X() * Consts::fieldScaleFactor,
-                               topLeft.y + Consts::fieldH * Consts::fieldScaleFactor - (float) values.robotTraj[i].Y() * Consts::fieldScaleFactor};
+        trajPointsToDraw[i] = {topLeft.x + (float) values.robotTraj[i].X() * fieldScaleFactor,
+                               topLeft.y + Consts::fieldH * fieldScaleFactor - (float) values.robotTraj[i].Y() * fieldScaleFactor};
     }
 
     drawList->AddPolyline(
@@ -230,8 +234,8 @@ void Dashboard::drawTelemetryWindow(const Values& values)
 
         for (int i = 0; i < poseHistory.pose.size(); i++)
         {
-            historyPoints[i] = {topLeft.x + (float) poseHistory.pose[i].X() * Consts::fieldScaleFactor,
-                                topLeft.y + Consts::fieldH * Consts::fieldScaleFactor - (float) poseHistory.pose[i].Y() * Consts::fieldScaleFactor};
+            historyPoints[i] = {topLeft.x + (float) poseHistory.pose[i].X() * fieldScaleFactor,
+                                topLeft.y + Consts::fieldH * fieldScaleFactor - (float) poseHistory.pose[i].Y() * fieldScaleFactor};
         }
 
         int numPoints = std::min<int>(historyPoints.size(), Consts::numHistoryPointsShown);
@@ -615,6 +619,25 @@ void Dashboard::drawCustomViewerWindow(const Values& values)
     ImGui::End();
 }
 
+void Dashboard::drawConfigWindow()
+{
+    ImGui::Begin("Config");
+
+    if (ImGui::InputFloat("GUI Scale", &config.guiScale, 0.01, 0.1))
+    {
+        config.guiScale = std::min(Consts::maxGuiScale, std::max(Consts::minGuiScale, config.guiScale));
+
+        pendingGuiChange = true;
+    }
+
+    if (ImGui::Button("Save Config To File"))
+    {
+        saveConfigFile();
+    }
+
+    ImGui::End();
+}
+
 void Dashboard::cleanUp()
 {
     ImGui_ImplOpenGL3_Shutdown();
@@ -623,6 +646,47 @@ void Dashboard::cleanUp()
     ImGui::DestroyContext();
     glfwDestroyWindow(window);
     glfwTerminate();
+}
+
+void Dashboard::applyPendingGuiChange()
+{
+    if (pendingGuiChange)
+    {
+        ImGuiIO& io        = ImGui::GetIO();
+        float scale_factor = config.guiScale;
+
+        io.Fonts->Clear();
+
+        ImFontConfig config;
+        config.OversampleH = 4;
+        config.OversampleV = 4;
+
+        float base_font_size = 14.0f;
+        io.Fonts->AddFontFromFileTTF(std::string(Consts::fontPath).c_str(), base_font_size * scale_factor, &config);
+
+        ImGui_ImplOpenGL3_DestroyDeviceObjects();
+
+        io.Fonts->Build();
+
+        ImGui_ImplOpenGL3_CreateDeviceObjects();
+
+        ImGui::GetStyle() = baseImGuiStyle;
+        ImGui::GetStyle().ScaleAllSizes(scale_factor);
+    }
+}
+
+void Dashboard::saveConfigFile()
+{
+    wpi::json j{};
+
+    j["gui"]["scale"] = config.guiScale;
+
+    std::ofstream configFile(Consts::configFilePath.data());
+    if (configFile.is_open())
+    {
+        configFile << j.dump(4) << std::endl;
+        configFile.close();
+    }
 }
 
 GLuint Dashboard::LoadTextureFromFile(const char* filename, int* out_width, int* out_height)
