@@ -148,6 +148,7 @@ class Dashboard
 
         void applyPendingGuiChange();
         void saveConfigFile();
+        void loadConfigFile();
 
         GLuint LoadTextureFromFile(const char* filename, int* out_width, int* out_height);
 

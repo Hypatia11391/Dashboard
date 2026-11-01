@@ -94,6 +94,8 @@ void Dashboard::init()
     startTime = std::chrono::duration_cast<std::chrono::milliseconds>(currentTime);
 
     baseImGuiStyle = ImGui::GetStyle();
+
+    loadConfigFile();
 }
 
 void Dashboard::mainLoop()
@@ -686,6 +688,28 @@ void Dashboard::saveConfigFile()
     {
         configFile << j.dump(4) << std::endl;
         configFile.close();
+    }
+}
+
+void Dashboard::loadConfigFile()
+{
+    std::ifstream file(Consts::configFilePath.data());
+    if (!file.is_open())
+    {
+        std::cerr << "WARNING: Failed to open config file, NOTE: Will always happen if just deleted config file or first time running and config file doesn't exist yet, try saving config to file and restarting dashboard" << std::endl;
+        return;
+    }
+
+    try
+    {
+        wpi::json j = wpi::json::parse(file);
+
+        config.guiScale  = j["gui"]["scale"];
+        pendingGuiChange = true;
+    }
+    catch (const wpi::json::parse_error& e)
+    {
+        std::cerr << "WARNING: Failed to parse config file, JSON Parse Error: " << e.what() << std::endl;
     }
 }
 
