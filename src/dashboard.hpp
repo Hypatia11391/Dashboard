@@ -1,5 +1,6 @@
 #pragma once
 
+#include "src/constants.hpp"
 #include "src/networking-server.hpp"
 #include "src/recording-manager.hpp"
 
@@ -182,7 +183,7 @@ class Dashboard
         bool pendingGuiChange = false;
 
         ImGuiStyle baseImGuiStyle;
-        float fieldScaleFactor = 30;
+        float fieldScaleFactor = Consts::defaultFieldScaleValue;
 
         bool showHistory                = false;
         bool appendHistory              = true;

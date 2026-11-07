@@ -411,7 +411,13 @@ void Dashboard::drawPlotsWindow(const Values& values)
 {
     ImGui::Begin("Plots");
 
-    if (ImPlot::BeginPlot("DX"))
+    float plotHeight = ImPlot::GetStyle().PlotDefaultSize.y * config.guiScale;
+
+    std::cout << config.guiScale << " " << plotHeight << " " << ImPlot::GetStyle().PlotDefaultSize.y << std::endl;
+
+    ImVec2 plotSize{-1, plotHeight};
+
+    if (ImPlot::BeginPlot("DX", plotSize))
     {
         ImPlot::SetupAxis(ImAxis_X1, "Time", ImPlotAxisFlags_AutoFit);
         ImPlot::SetupAxis(ImAxis_Y1, "Meters/Second", ImPlotAxisFlags_AutoFit);
@@ -422,7 +428,7 @@ void Dashboard::drawPlotsWindow(const Values& values)
         ImPlot::EndPlot();
     }
 
-    if (ImPlot::BeginPlot("DY"))
+    if (ImPlot::BeginPlot("DY", plotSize))
     {
         ImPlot::SetupAxis(ImAxis_X1, "Time", ImPlotAxisFlags_AutoFit);
         ImPlot::SetupAxis(ImAxis_Y1, "Meters/Second", ImPlotAxisFlags_AutoFit);
@@ -433,7 +439,7 @@ void Dashboard::drawPlotsWindow(const Values& values)
         ImPlot::EndPlot();
     }
 
-    if (ImPlot::BeginPlot("Angular Velocity"))
+    if (ImPlot::BeginPlot("Angular Velocity", plotSize))
     {
         ImPlot::SetupAxis(ImAxis_X1, "Time", ImPlotAxisFlags_AutoFit);
         ImPlot::SetupAxis(ImAxis_Y1, "Degs/Second", ImPlotAxisFlags_AutoFit);
@@ -459,7 +465,7 @@ void Dashboard::drawPlotsWindow(const Values& values)
             name.erase(0, Consts::datatablePrefix.length());
         }
 
-        if (ImPlot::BeginPlot(name.c_str()))
+        if (ImPlot::BeginPlot(name.c_str(), plotSize))
         {
             ImPlot::SetupAxis(ImAxis_X1, "Time", ImPlotAxisFlags_AutoFit);
             ImPlot::SetupAxis(ImAxis_Y1, name.c_str(), ImPlotAxisFlags_AutoFit);
@@ -657,6 +663,8 @@ void Dashboard::applyPendingGuiChange()
         ImGuiIO& io        = ImGui::GetIO();
         float scale_factor = config.guiScale;
 
+        fieldScaleFactor = Consts::defaultFieldScaleValue * scale_factor;
+
         io.Fonts->Clear();
 
         ImFontConfig config;
@@ -674,6 +682,8 @@ void Dashboard::applyPendingGuiChange()
 
         ImGui::GetStyle() = baseImGuiStyle;
         ImGui::GetStyle().ScaleAllSizes(scale_factor);
+
+        pendingGuiChange = false;
     }
 }
 

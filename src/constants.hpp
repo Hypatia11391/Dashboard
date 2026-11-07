@@ -6,6 +6,8 @@ namespace Consts
 {
 inline constexpr float PI = 3.14159265358979323846;
 
+inline constexpr float defaultFieldScaleValue = 30;
+
 inline constexpr float fieldW = 16.54;
 inline constexpr float fieldH = 8;
 
