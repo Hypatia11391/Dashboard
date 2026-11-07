@@ -292,7 +292,7 @@ void Dashboard::drawTelemetryWindow(const Values& values)
 
     ImGui::Separator();
 
-    drawCompass(drawList, "Heading:", -(float) values.robotPose.Rotation().Degrees() * Consts::PI / 180, 200);
+    drawCompass(drawList, "Heading:", -(float) values.robotPose.Rotation().Degrees() * Consts::PI / 180, 200 * config.guiScale);
 
     ImGui::End();
 }
