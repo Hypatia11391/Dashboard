@@ -1,7 +1,9 @@
 #pragma once
 
 #include "src/constants.hpp"
+#include "src/field-renderer.hpp"
 #include "src/networking-server.hpp"
+#include "src/networking-values.hpp"
 #include "src/recording-manager.hpp"
 
 #include <GLFW/glfw3.h>
@@ -163,13 +165,8 @@ class Dashboard
         GLuint fbo                = 0;
         GLuint textureColorbuffer = 0;
         GLuint rbo                = 0;
-        GLuint shaderProgram      = 0;
-        GLuint vao                = 0;
-        GLuint vbo                = 0;
 
-        void init3D();
         void render3DScene();
-        GLuint compileShaders();
 
         std::chrono::milliseconds startTime;
 
@@ -185,6 +182,8 @@ class Dashboard
 
         std::shared_ptr<NetworkingServer> networkingServer;
         std::shared_ptr<RecordingManager> recordingManager;
+
+        std::shared_ptr<FieldRender> fieldRender;
 
         PoseHistory poseHistory{};
         RobotData autoData{};

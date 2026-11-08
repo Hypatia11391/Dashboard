@@ -1,6 +1,7 @@
 #include "src/networking-server.hpp"
 #include "networktables/NetworkTableValue.h"
 #include "src/constants.hpp"
+#include "src/networking-values.hpp"
 
 #include <frc/geometry/Pose2d.h>
 #include <networktables/BooleanTopic.h>

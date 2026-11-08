@@ -11,6 +11,9 @@
 #include "src/constants.hpp"
 #include "src/primitives.hpp"
 
+namespace Primitives
+{
+
 void drawRotatedRect(ImDrawList* drawList, ImVec2 center, ImVec2 size, float rot, ImU32 col)
 {
     float rad = rot * Consts::PI / 180.0f;
@@ -234,3 +237,5 @@ void drawSearch(std::vector<std::string> options, std::string label, char* searc
         }
     }
 }
+
+} // namespace Primitives

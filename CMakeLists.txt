@@ -11,6 +11,7 @@ set(WPILIB_INC_DIR "${WPILIB_ROOT}/extracted/include")
 
 find_package(OpenGL REQUIRED)
 find_package(glfw3 REQUIRED)
+find_package(raylib REQUIRED) 
 
 set(IMGUI_DIR ${CMAKE_CURRENT_SOURCE_DIR}/vendor/imgui)
 set(IMPLOT_DIR ${CMAKE_CURRENT_SOURCE_DIR}/vendor/implot)
@@ -30,6 +31,7 @@ add_executable(Dashboard
     src/primitives.cpp
     src/glad.c
     src/networking-server.cpp
+    src/field-renderer.cpp
     src/recording-manager.cpp
     ${IMPLOT_DIR}/implot.cpp
     ${IMPLOT_DIR}/implot_items.cpp
@@ -49,4 +51,5 @@ target_link_libraries(Dashboard PRIVATE
     wpinet
     wpiutil
     wpimath
+    raylib
 )

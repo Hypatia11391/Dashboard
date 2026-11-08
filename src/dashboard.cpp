@@ -38,8 +38,9 @@
 
 #include "src/constants.hpp"
 #include "src/dashboard.hpp"
+#include "src/field-renderer.hpp"
+#include "src/networking-values.hpp"
 #include "src/primitives.hpp"
-#include "wpi/json_fwd.h"
 
 Dashboard::Dashboard(const DashboardCreateInfo& createInfo) : createInfo(createInfo)
 {
@@ -109,138 +110,24 @@ void Dashboard::init()
 
     loadConfigFile();
 
-    init3D();
-}
-
-void Dashboard::init3D()
-{
-    // 1. Compile Shaders
-    shaderProgram = compileShaders();
-
-    // 2. Set up Vertex Data for a Cube
-    float vertices[] = {
-        // positions (x,y,z)     // colors (r,g,b)
-        -0.5f, -0.5f, -0.5f, 1.0f, 0.0f, 0.0f,
-        0.5f, -0.5f, -0.5f, 0.0f, 1.0f, 0.0f,
-        0.5f, 0.5f, -0.5f, 0.0f, 0.0f, 1.0f,
-        0.5f, 0.5f, -0.5f, 0.0f, 0.0f, 1.0f,
-        -0.5f, 0.5f, -0.5f, 1.0f, 1.0f, 0.0f,
-        -0.5f, -0.5f, -0.5f, 1.0f, 0.0f, 0.0f,
-
-        -0.5f, -0.5f, 0.5f, 1.0f, 0.0f, 0.0f,
-        0.5f, -0.5f, 0.5f, 0.0f, 1.0f, 0.0f,
-        0.5f, 0.5f, 0.5f, 0.0f, 0.0f, 1.0f,
-        0.5f, 0.5f, 0.5f, 0.0f, 0.0f, 1.0f,
-        -0.5f, 0.5f, 0.5f, 1.0f, 1.0f, 0.0f,
-        -0.5f, -0.5f, 0.5f, 1.0f, 0.0f, 0.0f,
-
-        -0.5f, 0.5f, 0.5f, 1.0f, 0.0f, 0.0f,
-        -0.5f, 0.5f, -0.5f, 0.0f, 1.0f, 0.0f,
-        -0.5f, -0.5f, -0.5f, 0.0f, 0.0f, 1.0f,
-        -0.5f, -0.5f, -0.5f, 0.0f, 0.0f, 1.0f,
-        -0.5f, -0.5f, 0.5f, 1.0f, 1.0f, 0.0f,
-        -0.5f, 0.5f, 0.5f, 1.0f, 0.0f, 0.0f,
-
-        0.5f, 0.5f, 0.5f, 1.0f, 0.0f, 0.0f,
-        0.5f, 0.5f, -0.5f, 0.0f, 1.0f, 0.0f,
-        0.5f, -0.5f, -0.5f, 0.0f, 0.0f, 1.0f,
-        0.5f, -0.5f, -0.5f, 0.0f, 0.0f, 1.0f,
-        0.5f, -0.5f, 0.5f, 1.0f, 1.0f, 0.0f,
-        0.5f, 0.5f, 0.5f, 1.0f, 0.0f, 0.0f,
-
-        -0.5f, -0.5f, -0.5f, 1.0f, 0.0f, 0.0f,
-        0.5f, -0.5f, -0.5f, 0.0f, 1.0f, 0.0f,
-        0.5f, -0.5f, 0.5f, 0.0f, 0.0f, 1.0f,
-        0.5f, -0.5f, 0.5f, 0.0f, 0.0f, 1.0f,
-        -0.5f, -0.5f, 0.5f, 1.0f, 1.0f, 0.0f,
-        -0.5f, -0.5f, -0.5f, 1.0f, 0.0f, 0.0f,
-
-        -0.5f, 0.5f, -0.5f, 1.0f, 0.0f, 0.0f,
-        0.5f, 0.5f, -0.5f, 0.0f, 1.0f, 0.0f,
-        0.5f, 0.5f, 0.5f, 0.0f, 0.0f, 1.0f,
-        0.5f, 0.5f, 0.5f, 0.0f, 0.0f, 1.0f,
-        -0.5f, 0.5f, 0.5f, 1.0f, 1.0f, 0.0f,
-        -0.5f, 0.5f, -0.5f, 1.0f, 0.0f, 0.0f};
-
-    glGenVertexArrays(1, &vao);
-    glGenBuffers(1, &vbo);
-
-    glBindVertexArray(vao);
-    glBindBuffer(GL_ARRAY_BUFFER, vbo);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-
-    // Position attribute
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*) 0);
-    glEnableVertexAttribArray(0);
-    // Color attribute
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*) (3 * sizeof(float)));
-    glEnableVertexAttribArray(1);
-
-    // 3. Create Framebuffer Object (FBO) for off-screen rendering
-    // Fixed resolution for now. For dynamic resizing, recreate this when the ImGui window resizes.
-    const int FBO_WIDTH  = 1280;
-    const int FBO_HEIGHT = 720;
-
     glGenFramebuffers(1, &fbo);
     glBindFramebuffer(GL_FRAMEBUFFER, fbo);
 
-    // Create a color attachment texture
     glGenTextures(1, &textureColorbuffer);
     glBindTexture(GL_TEXTURE_2D, textureColorbuffer);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, FBO_WIDTH, FBO_HEIGHT, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, Consts::fboWidth, Consts::fboHeight, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, textureColorbuffer, 0);
 
-    // Create a renderbuffer object for depth and stencil attachment
     glGenRenderbuffers(1, &rbo);
     glBindRenderbuffer(GL_RENDERBUFFER, rbo);
-    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, FBO_WIDTH, FBO_HEIGHT);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, Consts::fboWidth, Consts::fboHeight);
     glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, rbo);
 
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
-}
 
-GLuint Dashboard::compileShaders()
-{
-    const char* vertexShaderSource = "#version 130\n"
-                                     "in vec3 aPos;\n"
-                                     "in vec3 aColor;\n"
-                                     "out vec3 ourColor;\n"
-                                     "uniform mat4 model;\n"
-                                     "uniform mat4 view;\n"
-                                     "uniform mat4 projection;\n"
-                                     "void main()\n"
-                                     "{\n"
-                                     "   gl_Position = projection * view * model * vec4(aPos, 1.0);\n"
-                                     "   ourColor = aColor;\n"
-                                     "}\0";
-
-    const char* fragmentShaderSource = "#version 130\n"
-                                       "in vec3 ourColor;\n"
-                                       "out vec4 FragColor;\n"
-                                       "void main()\n"
-                                       "{\n"
-                                       "   FragColor = vec4(ourColor, 1.0f);\n"
-                                       "}\n\0";
-
-    GLuint vertexShader = glCreateShader(GL_VERTEX_SHADER);
-    glShaderSource(vertexShader, 1, &vertexShaderSource, NULL);
-    glCompileShader(vertexShader);
-
-    GLuint fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
-    glShaderSource(fragmentShader, 1, &fragmentShaderSource, NULL);
-    glCompileShader(fragmentShader);
-
-    GLuint shaderProg = glCreateProgram();
-    glAttachShader(shaderProg, vertexShader);
-    glAttachShader(shaderProg, fragmentShader);
-    glLinkProgram(shaderProg);
-
-    glDeleteShader(vertexShader);
-    glDeleteShader(fragmentShader);
-
-    return shaderProg;
+    fieldRender = std::make_shared<FieldRender>(fbo, textureColorbuffer, Consts::fboWidth, Consts::fboHeight);
 }
 
 void Dashboard::mainLoop()
@@ -278,6 +165,7 @@ void Dashboard::render(const Values& values)
 
     drawWindows(values);
 
+    fieldRender->render(values);
     render3DScene();
 
     ImGui::Begin("3D Field View");
@@ -299,43 +187,6 @@ void Dashboard::render(const Values& values)
 
 void Dashboard::render3DScene()
 {
-    // Bind our off-screen framebuffer
-    glBindFramebuffer(GL_FRAMEBUFFER, fbo);
-
-    // Setup viewport to match FBO dimensions
-    glViewport(0, 0, 1280, 720);
-
-    // Enable depth testing (crucial for 3D)
-    glEnable(GL_DEPTH_TEST);
-
-    glClearColor(0.2f, 0.2f, 0.2f, 1.0f);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-    glUseProgram(shaderProgram);
-
-    // Create transformations
-    glm::mat4 model = glm::mat4(1.0f);
-    // Rotate cube over time
-    model = glm::rotate(model, (float) glfwGetTime(), glm::vec3(0.5f, 1.0f, 0.0f));
-
-    glm::mat4 view = glm::mat4(1.0f);
-    // Move camera back a bit
-    view = glm::translate(view, glm::vec3(0.0f, 0.0f, -3.0f));
-
-    glm::mat4 projection = glm::perspective(glm::radians(45.0f), (float) 1280 / (float) 720, 0.1f, 100.0f);
-
-    // Pass matrices to shaders
-    glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "model"), 1, GL_FALSE, glm::value_ptr(model));
-    glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "view"), 1, GL_FALSE, glm::value_ptr(view));
-    glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
-
-    // Render the cube
-    glBindVertexArray(vao);
-    glDrawArrays(GL_TRIANGLES, 0, 36);
-
-    // Reset state for ImGui
-    glDisable(GL_DEPTH_TEST);
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
 void Dashboard::drawWindows(const Values& values)
@@ -380,12 +231,12 @@ void Dashboard::drawTelemetryWindow(const Values& values)
                        {(float) 90 / 3508, (float) 90 / 1814},
                        {1 - (float) 90 / 3508, 1 - (float) 90 / 1814});
 
-    drawRotatedRect(drawList,
-                    {topLeft.x + (float) values.robotPose.X() * fieldScaleFactor,
-                     topLeft.y + Consts::fieldH * fieldScaleFactor - (float) values.robotPose.Y() * fieldScaleFactor + Consts::robotH * fieldScaleFactor / 2},
-                    {Consts::robotH * fieldScaleFactor, Consts::robotW * fieldScaleFactor},
-                    -(float) values.robotPose.Rotation().Degrees(),
-                    IM_COL32(100, 125, 200, 255));
+    Primitives::drawRotatedRect(drawList,
+                                {topLeft.x + (float) values.robotPose.X() * fieldScaleFactor,
+                                 topLeft.y + Consts::fieldH * fieldScaleFactor - (float) values.robotPose.Y() * fieldScaleFactor + Consts::robotH * fieldScaleFactor / 2},
+                                {Consts::robotH * fieldScaleFactor, Consts::robotW * fieldScaleFactor},
+                                -(float) values.robotPose.Rotation().Degrees(),
+                                IM_COL32(100, 125, 200, 255));
 
     for (const auto& customFieldSub : customFieldSubs)
     {
@@ -395,12 +246,12 @@ void Dashboard::drawTelemetryWindow(const Values& values)
         {
             if (data.GetDoubleArray().size() == 3)
             {
-                drawRotatedRect(drawList,
-                                {topLeft.x + (float) data.GetDoubleArray()[0] * fieldScaleFactor,
-                                 topLeft.y + Consts::fieldH * fieldScaleFactor - (float) data.GetDoubleArray()[1] * fieldScaleFactor + Consts::robotH * fieldScaleFactor / 2},
-                                {Consts::robotH * fieldScaleFactor, Consts::robotW * fieldScaleFactor},
-                                -(float) data.GetDoubleArray()[2],
-                                IM_COL32(255, 125, 200, 255));
+                Primitives::drawRotatedRect(drawList,
+                                            {topLeft.x + (float) data.GetDoubleArray()[0] * fieldScaleFactor,
+                                             topLeft.y + Consts::fieldH * fieldScaleFactor - (float) data.GetDoubleArray()[1] * fieldScaleFactor + Consts::robotH * fieldScaleFactor / 2},
+                                            {Consts::robotH * fieldScaleFactor, Consts::robotW * fieldScaleFactor},
+                                            -(float) data.GetDoubleArray()[2],
+                                            IM_COL32(255, 125, 200, 255));
             }
         }
     }
@@ -441,7 +292,7 @@ void Dashboard::drawTelemetryWindow(const Values& values)
                               2.0f);
     }
 
-    drawCheckBox("Append History", appendHistory);
+    Primitives::drawCheckBox("Append History", appendHistory);
 
     if (appendHistory)
     {
@@ -453,7 +304,7 @@ void Dashboard::drawTelemetryWindow(const Values& values)
         }
     }
 
-    drawCheckBox("Show History", showHistory);
+    Primitives::drawCheckBox("Show History", showHistory);
     if (ImGui::Button("Clear History"))
     {
         poseHistory.clear();
@@ -476,16 +327,19 @@ void Dashboard::drawTelemetryWindow(const Values& values)
         fieldTopicKeys.push_back(name);
     }
 
-    drawSearch(fieldTopicKeys,
-               "Search for objects to add to field",
-               fieldSearchBuffer,
-               IM_ARRAYSIZE(fieldSearchBuffer),
-               [this](std::string option) mutable
-               { customFieldSubs.push_back(networkingServer->addFieldCustomSub(option)); });
+    Primitives::drawSearch(fieldTopicKeys,
+                           "Search for objects to add to field",
+                           fieldSearchBuffer,
+                           IM_ARRAYSIZE(fieldSearchBuffer),
+                           [this](std::string option) mutable
+                           { customFieldSubs.push_back(networkingServer->addFieldCustomSub(option)); });
 
     ImGui::Separator();
 
-    drawCompass(drawList, "Heading:", -(float) values.robotPose.Rotation().Degrees() * Consts::PI / 180, 200 * config.guiScale);
+    Primitives::drawCompass(drawList,
+                            "Heading:",
+                            -(float) values.robotPose.Rotation().Degrees() * Consts::PI / 180,
+                            200 * config.guiScale);
 
     ImGui::End();
 }
@@ -681,7 +535,7 @@ void Dashboard::drawPlotsWindow(const Values& values)
             customPlot.clear();
         }
     }
-    drawCheckBox("Appending Custom Plots", appendingCustomPlots);
+    Primitives::drawCheckBox("Appending Custom Plots", appendingCustomPlots);
 
     if (appendingCustomPlots)
     {
@@ -708,12 +562,12 @@ void Dashboard::drawPlotsWindow(const Values& values)
         plotTopicKeys.push_back(name);
     }
 
-    drawSearch(plotTopicKeys,
-               "Search for values to plot",
-               plotSearchBuffer,
-               IM_ARRAYSIZE(plotSearchBuffer),
-               [this](std::string option) mutable
-               { customPlotInfo.push_back({{}, {}, networkingServer->addCustomSub(option)}); });
+    Primitives::drawSearch(plotTopicKeys,
+                           "Search for values to plot",
+                           plotSearchBuffer,
+                           IM_ARRAYSIZE(plotSearchBuffer),
+                           [this](std::string option) mutable
+                           { customPlotInfo.push_back({{}, {}, networkingServer->addCustomSub(option)}); });
 
     ImGui::End();
 }
@@ -721,7 +575,7 @@ void Dashboard::drawPlotsWindow(const Values& values)
 void Dashboard::drawRecordingWindow(const Values& values)
 {
     ImGui::Begin("Recording");
-    drawCheckBox("Is Recording", recording);
+    Primitives::drawCheckBox("Is Recording", recording);
 
     if (ImGui::Button("Clear recording"))
     {
@@ -752,12 +606,12 @@ void Dashboard::drawRecordingWindow(const Values& values)
         recordingTopicKeys.push_back(name);
     }
 
-    drawSearch(recordingTopicKeys,
-               "Search for values to record",
-               recordingSearchBuffer,
-               IM_ARRAYSIZE(recordingSearchBuffer),
-               [this](std::string option) mutable
-               { customRecordingSubs.push_back(networkingServer->addCustomSub(option)); });
+    Primitives::drawSearch(recordingTopicKeys,
+                           "Search for values to record",
+                           recordingSearchBuffer,
+                           IM_ARRAYSIZE(recordingSearchBuffer),
+                           [this](std::string option) mutable
+                           { customRecordingSubs.push_back(networkingServer->addCustomSub(option)); });
 
     ImGui::End();
 
@@ -796,12 +650,12 @@ void Dashboard::drawCustomViewerWindow(const Values& values)
 
     ImGui::Begin("Custom Viewer");
 
-    drawSearch(topicKeys,
-               "Search for values to view",
-               searchBuffer,
-               IM_ARRAYSIZE(searchBuffer),
-               [this](std::string option) mutable
-               { customSubs.push_back(networkingServer->addCustomSub(option)); });
+    Primitives::drawSearch(topicKeys,
+                           "Search for values to view",
+                           searchBuffer,
+                           IM_ARRAYSIZE(searchBuffer),
+                           [this](std::string option) mutable
+                           { customSubs.push_back(networkingServer->addCustomSub(option)); });
 
     ImGui::Separator();
 
@@ -814,7 +668,7 @@ void Dashboard::drawCustomViewerWindow(const Values& values)
             name.erase(0, Consts::datatablePrefix.length());
         }
 
-        displayGeneric(name, networkingServer->getCustomSub(customSub));
+        Primitives::displayGeneric(name, networkingServer->getCustomSub(customSub));
     }
 
     ImGui::End();
@@ -841,9 +695,6 @@ void Dashboard::drawConfigWindow()
 
 void Dashboard::cleanUp()
 {
-    glDeleteVertexArrays(1, &vao);
-    glDeleteBuffers(1, &vbo);
-    glDeleteProgram(shaderProgram);
     glDeleteFramebuffers(1, &fbo);
     glDeleteTextures(1, &textureColorbuffer);
     glDeleteRenderbuffers(1, &rbo);

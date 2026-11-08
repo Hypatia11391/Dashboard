@@ -29,4 +29,7 @@ inline constexpr double pubSubRate = 0.01;
 inline constexpr int teamNum = 11391;
 
 inline constexpr int numHistoryPointsShown = 1e3;
+
+inline constexpr int fboWidth  = 1280;
+inline constexpr int fboHeight = 720;
 } // namespace Consts
