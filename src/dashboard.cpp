@@ -67,7 +67,7 @@ void Dashboard::init()
     //glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE); // 3.2+ only
     //glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);           // Required on macOS
 
-    window = glfwCreateWindow(mode->width, mode->height, "Fullscreen Window", monitor, NULL);
+    window = glfwCreateWindow(mode->width, mode->height, "Fullscreen Window", NULL/*monitor*/, NULL);
     if (!window)
     {
         glfwTerminate();
