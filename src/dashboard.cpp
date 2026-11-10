@@ -67,7 +67,16 @@ void Dashboard::init()
     //glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE); // 3.2+ only
     //glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);           // Required on macOS
 
-    window = glfwCreateWindow(mode->width, mode->height, "Fullscreen Window", NULL/*monitor*/, NULL);
+    int xpos = 0, ypos = 0, width = mode->width, height = mode->height;
+
+    std::ifstream infile("window_settings.txt");
+    if(infile.is_open()) {
+        infile >> xpos >> ypos >> width >> height;
+        infile.close();
+    }
+
+    window = glfwCreateWindow(width, height, "Fullscreen Window", NULL/*monitor*/, NULL);
+    glfwSetWindowPos(window, xpos, ypos);
     if (!window)
     {
         glfwTerminate();
@@ -652,6 +661,15 @@ void Dashboard::cleanUp()
     ImGui_ImplGlfw_Shutdown();
     ImPlot::DestroyContext();
     ImGui::DestroyContext();
+
+    int xpos, ypos, width, height;
+    glfwGetWindowPos(window, &xpos, &ypos);
+    glfwGetWindowSize(window, &width, &height);
+
+    std::ofstream outfile("window_settings.txt");
+    outfile << xpos << " " << ypos << " " << width << " " << height;
+    outfile.close();
+
     glfwDestroyWindow(window);
     glfwTerminate();
 }
