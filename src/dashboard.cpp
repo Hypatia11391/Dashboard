@@ -63,9 +63,9 @@ void Dashboard::init()
     const GLFWvidmode* mode = glfwGetVideoMode(monitor);
 
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 2);
-    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE); // 3.2+ only
-    glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);           // Required on macOS
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 0);  // changed for rpi from 2 to 0
+    //glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE); // 3.2+ only
+    //glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);           // Required on macOS
 
     window = glfwCreateWindow(mode->width, mode->height, "Fullscreen Window", monitor, NULL);
     if (!window)
@@ -81,7 +81,7 @@ void Dashboard::init()
     ImGui::CreateContext();
     ImPlot::CreateContext();
     ImGui_ImplGlfw_InitForOpenGL(window, true);
-    ImGui_ImplOpenGL3_Init("#version 150 core");
+    ImGui_ImplOpenGL3_Init("#version 130");  // changed from "150 core" to "130" for rpi
 
     ImGui::StyleColorsDark();
 
@@ -413,7 +413,7 @@ void Dashboard::drawPlotsWindow(const Values& values)
 
     float plotHeight = ImPlot::GetStyle().PlotDefaultSize.y * config.guiScale;
 
-    std::cout << config.guiScale << " " << plotHeight << " " << ImPlot::GetStyle().PlotDefaultSize.y << std::endl;
+    //std::cout << config.guiScale << " " << plotHeight << " " << ImPlot::GetStyle().PlotDefaultSize.y << std::endl;
 
     ImVec2 plotSize{-1, plotHeight};
 

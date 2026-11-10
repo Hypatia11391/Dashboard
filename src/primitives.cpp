@@ -5,7 +5,7 @@
 #include <networktables/GenericEntry.h>
 
 #include <cmath>
-#include <format>
+//#include <format>
 #include <iostream>
 
 #include "src/constants.hpp"
@@ -133,10 +133,10 @@ std::string span_to_string(std::span<const int> s)
 {
     if (s.empty()) return "";
 
-    std::string result = std::format("[{}", s[0]);
+    std::string result = "[" + std::to_string(s[0]); //std::format("[{}", s[0]);
     for (size_t i = 1; i < s.size(); ++i)
     {
-        result += std::format(", {}", s[i]);
+        result += ", " + std::to_string(s[i]); //std::format(", {}", s[i]);
     }
     result += "]";
 
@@ -147,10 +147,10 @@ std::string span_to_string(std::span<const double> s)
 {
     if (s.empty()) return "";
 
-    std::string result = std::format("[{}", s[0]);
+    std::string result = "[" + std::to_string(s[0]); //std::format("[{}", s[0]);
     for (size_t i = 1; i < s.size(); ++i)
     {
-        result += std::format(", {}", s[i]);
+        result += ", " + std::to_string(s[i]); //std::format(", {}", s[i]);
     }
     result += "]";
 
@@ -161,10 +161,10 @@ std::string span_to_string(std::span<const std::string> s)
 {
     if (s.empty()) return "";
 
-    std::string result = std::format("[{}", s[0]);
+    std::string result = "[" + s[0]; //std::format("[{}", s[0]);
     for (size_t i = 1; i < s.size(); ++i)
     {
-        result += std::format(", {}", s[i]);
+        result += ", " + s[i]; //std::format(", {}", s[i]);
     }
     result += "]";
 
@@ -175,27 +175,27 @@ void displayGeneric(const std::string& name, const nt::Value& value)
 {
     if (value.IsBoolean())
     {
-        ImGui::TextUnformatted(std::format("{}: {}", name, value.GetBoolean()).c_str());
+        ImGui::TextUnformatted((std::string(name) + ": " + std::to_string(value.GetBoolean())).c_str()); //std::format("{}: {}", name, value.GetBoolean()).c_str());
     }
     else if (value.IsDouble())
     {
-        ImGui::TextUnformatted(std::format("{}: {}", name, value.GetDouble()).c_str());
+        ImGui::TextUnformatted((std::string(name) + ": " + std::to_string(value.GetDouble())).c_str()); //std::format("{}: {}", name, value.GetDouble()).c_str());
     }
     else if (value.IsString())
     {
-        ImGui::TextUnformatted(std::format("{}: {}", name, value.GetString()).c_str());
+        ImGui::TextUnformatted((std::string(name) + ": " + std::string(value.GetString())).c_str()); //std::format("{}: {}", name, value.GetString()).c_str());
     }
     else if (value.IsBooleanArray())
     {
-        ImGui::TextUnformatted(std::format("{}: {}", name, span_to_string(value.GetBooleanArray())).c_str());
+        ImGui::TextUnformatted((std::string(name) + ": " + std::string(span_to_string(value.GetBooleanArray()))).c_str()); //std::format("{}: {}", name, span_to_string(value.GetBooleanArray())).c_str());
     }
     else if (value.IsDoubleArray())
     {
-        ImGui::TextUnformatted(std::format("{}: {}", name, span_to_string(value.GetDoubleArray())).c_str());
+        ImGui::TextUnformatted((std::string(name) + ": " + std::string(span_to_string(value.GetDoubleArray()))).c_str()); //std::format("{}: {}", name, span_to_string(value.GetDoubleArray())).c_str());
     }
     else if (value.IsStringArray())
     {
-        ImGui::TextUnformatted(std::format("{}: {}", name, span_to_string(value.GetStringArray())).c_str());
+        ImGui::TextUnformatted((std::string(name) + ": " + std::string(span_to_string(value.GetStringArray()))).c_str()); //std::format("{}: {}", name, span_to_string(value.GetStringArray())).c_str());
     }
 }
 
