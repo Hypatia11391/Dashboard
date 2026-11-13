@@ -3,6 +3,7 @@
 #include "src/constants.hpp"
 #include "src/networking-server.hpp"
 #include "src/recording-manager.hpp"
+#include "src/sound-feedback.hpp"
 
 #include <GLFW/glfw3.h>
 
@@ -144,6 +145,7 @@ class Dashboard
         void drawPlotsWindow(const Values& values);
         void drawRecordingWindow(const Values& values);
         void drawCustomViewerWindow(const Values& values);
+        void drawSoundFeedbackWindow(const Values& values);
 
         void drawConfigWindow();
 
@@ -174,6 +176,7 @@ class Dashboard
 
         std::shared_ptr<NetworkingServer> networkingServer;
         std::shared_ptr<RecordingManager> recordingManager;
+        std::shared_ptr<SoundFeedback> soundFeedback;
 
         PoseHistory poseHistory{};
         RobotData autoData{};
@@ -194,4 +197,5 @@ class Dashboard
         char fileNameBuffer[128]        = "output.jsonl";
         char recordingSearchBuffer[128] = "";
         char searchBuffer[128]          = "";
+        bool playing                    = false;
 };

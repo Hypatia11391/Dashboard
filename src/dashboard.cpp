@@ -32,7 +32,7 @@
 #include "src/constants.hpp"
 #include "src/dashboard.hpp"
 #include "src/primitives.hpp"
-#include "wpi/json_fwd.h"
+#include "src/sound-feedback.hpp"
 
 Dashboard::Dashboard(const DashboardCreateInfo& createInfo) : createInfo(createInfo)
 {
@@ -53,6 +53,8 @@ void Dashboard::init()
     networkingServer = std::make_shared<NetworkingServer>(networkServerInfo);
 
     recordingManager = std::make_shared<RecordingManager>("output.jsonl");
+    
+    soundFeedback = std::make_shared<SoundFeedback>();
 
     if (!glfwInit())
     {
@@ -154,6 +156,7 @@ void Dashboard::drawWindows(const Values& values)
     drawPlotsWindow(values);
     drawRecordingWindow(values);
     drawCustomViewerWindow(values);
+    drawSoundFeedbackWindow(values);
     drawConfigWindow();
 }
 
@@ -625,6 +628,20 @@ void Dashboard::drawCustomViewerWindow(const Values& values)
     }
 
     ImGui::End();
+}
+
+void Dashboard::drawSoundFeedbackWindow(const Values& values) {
+    ImGui::Begin("Sound Feedback");
+    bool newPlaying = playing;
+    drawCheckBox("Is Playing", newPlaying);
+    ImGui::End();
+    if (newPlaying && !playing) {
+        soundFeedback->start({});
+    }
+    if (!newPlaying && playing) {
+        soundFeedback->stop();
+    }
+    playing = newPlaying;
 }
 
 void Dashboard::drawConfigWindow()
