@@ -10,8 +10,7 @@ CXXFLAGS := -std=c++20 -O2 \
     -I$(NATIVE)/wpinet/include \
     -I$(NATIVE)/wpimath/include \
     -I$(NATIVE)/wpilib/include \
-    -I$(NATIVE)/wpihal/include \
-    -Ivendor/portaudio/include
+    -I$(NATIVE)/wpihal/include
 
 LDFLAGS := \
     -L$(NATIVE)/ntcore/lib \
@@ -23,11 +22,14 @@ LDFLAGS := \
     -Wl,-rpath,$(NATIVE)/ntcore/lib \
     -Wl,-rpath,$(NATIVE)/wpinet/lib \
     -Wl,-rpath,$(NATIVE)/wpiutil/lib \
-	-Wl,-rpath,$(NATIVE)/wpimath/lib \
-    -Wl,-rpath,vendor/portaudio/lib \
-    -Wl,-rpath,vendor/portaudio/lib/.libs
+	-Wl,-rpath,$(NATIVE)/wpimath/lib
 
-LDLIBS := -lntcore -lwpinet -lwpiutil -lwpimath -lportaudio
+ifeq ($(strip $(shell pkg-config --cflags portaudio-2.0)),)
+	CXXFLAGS += -Ivendor/portaudio/include
+	LDFLAGS += -Lvendor/portaudio/lib -Lvendor/portaudio/lib/.libs -Wl,-rpath,vendor/portaudio/lib -Wl,-rpath,vendor/portaudio/lib/.libs
+endif
+
+LDLIBS := -lntcore -lwpinet -lwpiutil -lwpimath -lportaudio $(strip $(shell pkg-config --libs portaudio-2.0))
 UNAME_S := $(shell uname -s)
 ifneq ($(findstring Darwin,$(UNAME_S)),)
 	CXXFLAGS += -I/usr/local/include
@@ -47,7 +49,7 @@ TARGET := dashboard
 
 OBJS = $(SRCS:.cpp=.o)
 
-INCFLAGS = -Iimgui -Iimgui/backends -Ivendor/implot -Ivendor/portaudio/include -Ivendor -I.
+INCFLAGS = -Iimgui -Iimgui/backends -Ivendor/implot -Ivendor/portaudio/include $(strip $(shell pkg-config --cflags portaudio-2.0)) -Ivendor -I.
 DEPS = vendor/stb_image.h
 
 .PHONY: all clean
